@@ -85,7 +85,11 @@ alias k="kubectl"
 # misc
 alias code="code-insiders"
 alias c="clear"
-alias ??="opencode run"
+
+# go function - runs opencode with terminal-executor agent (continues last session)
+go() {
+  opencode run --continue --model github-copilot/claude-sonnet-4.5 --agent terminal-executor "$*"
+}
 
 # system monitoring
 if command -v btm >/dev/null 2>&1; then
