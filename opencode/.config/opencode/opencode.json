@@ -1,4 +1,11 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "theme": "system"
+  "theme": "system",
+  "command": {
+    "commit": {
+      "template": "You are helping the user create a git commit using conventional commit format.\n\nSTRICT REQUIREMENTS:\n1. Run 'git status' and 'git diff --staged' to see what changes are staged\n2. If nothing is staged, run 'git diff' to see unstaged changes and ask the user if they want to stage all changes or specific files\n3. Generate a commit message that MUST follow this format:\n   <type>: <description>\n\n   Where type is one of:\n   - feat: A new feature\n   - fix: A bug fix\n   - docs: Documentation only changes\n   - style: Changes that don't affect code meaning (formatting, missing semi-colons, etc)\n   - refactor: Code change that neither fixes a bug nor adds a feature\n   - perf: Performance improvement\n   - test: Adding missing tests or correcting existing tests\n   - build: Changes that affect the build system or external dependencies\n   - ci: Changes to CI configuration files and scripts\n   - chore: Other changes that don't modify src or test files\n\n4. The description should be lowercase, concise (max 72 chars), and focus on WHY not WHAT\n5. Show the user the proposed commit message\n6. Ask for confirmation\n7. If confirmed, run 'git commit -m \"<message>\"'\n8. Show the result\n\nEXAMPLES:\n- feat: add user authentication\n- fix: resolve null pointer in payment flow\n- docs: update installation instructions\n- refactor: simplify error handling logic",
+      "description": "Generate a conventional commit message and create a commit",
+      "agent": "general"
+    }
+  }
 }

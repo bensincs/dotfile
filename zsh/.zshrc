@@ -85,6 +85,7 @@ alias k="kubectl"
 # misc
 alias code="code-insiders"
 alias c="clear"
+alias ??="opencode run"
 
 # system monitoring
 if command -v btm >/dev/null 2>&1; then
