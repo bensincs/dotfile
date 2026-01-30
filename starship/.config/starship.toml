@@ -1,0 +1,20 @@
+add_newline = false
+
+[character]
+success_symbol = "❯"
+error_symbol = "❯"
+
+[git_branch]
+symbol = " "
+
+[nodejs]
+symbol = "⬢ "
+
+[rust]
+symbol = "🦀 "
+
+[python]
+symbol = "🐍 "
+
+[azure]
+disabled = false
