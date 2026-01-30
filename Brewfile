@@ -1,6 +1,7 @@
 # --- Core CLI ---
 brew "git"
 brew "git-lfs"
+brew "git-delta"
 brew "gh"
 brew "wget"
 brew "mkcert"
