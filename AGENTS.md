@@ -256,3 +256,195 @@ c     # clear
 - **Terminal Multiplexer:** Tmux (auto-attaches to "main" session)
 - **Version Managers:** fnm (Node), asdf (multi-runtime), rustup (Rust), SDKMAN (JVM)
 - **Cloud Platform:** Azure (azure-cli configured)
+
+## Development Tooling Preferences
+
+### Python Projects - Use `uv`
+
+**Ben uses `uv` instead of pip/venv/poetry for Python development.**
+
+Key facts about uv:
+- Ultra-fast Python package installer (10-100x faster than pip)
+- Manages virtual environments automatically in `.venv/`
+- Uses `pyproject.toml` for dependencies (NOT requirements.txt)
+- Installed via Homebrew: `brew install uv`
+
+Common uv commands:
+```bash
+# Initialize new Python project
+uv init
+
+# Install dependencies from pyproject.toml
+uv sync
+
+# Run Python script with uv-managed environment
+uv run script.py
+
+# Add a package
+uv add package-name
+
+# Update lock file
+uv lock
+```
+
+Project structure with uv:
+```
+project/
+├── pyproject.toml          # Dependencies & metadata
+├── uv.lock                 # Locked dependency versions
+├── .venv/                  # Auto-managed virtual environment
+└── package_name/           # Source code (underscores not hyphens)
+    ├── __init__.py
+    └── main.py
+```
+
+**Important:**
+- Always use `uv run` to execute scripts (no need to activate venv)
+- Dependencies go in `pyproject.toml` under `[project.dependencies]`
+- Use `uv sync` not `pip install -r requirements.txt`
+- Package directory names use underscores (e.g., `my_package/`)
+
+### Node.js/TypeScript Projects - Use `yarn` workspaces
+
+**Ben uses `yarn` (NOT npm) for JavaScript/TypeScript development.**
+
+Key facts about yarn:
+- Preferred package manager for Node.js projects
+- Supports monorepo workspaces natively
+- Faster and more reliable than npm
+- Node.js managed via `fnm` (Fast Node Manager)
+
+Common yarn workspace patterns:
+```bash
+# Install dependencies in monorepo
+yarn install
+
+# Run script from root
+yarn dev
+yarn build
+
+# Add dependency to specific workspace
+yarn workspace @scope/package add dependency
+```
+
+Monorepo structure with yarn workspaces:
+```
+project/
+├── package.json           # Root with workspaces config
+├── packages/
+│   ├── backend/
+│   │   └── package.json
+│   ├── frontend/
+│   │   └── package.json
+│   └── shared/
+│       └── package.json
+└── yarn.lock             # Locked dependencies
+```
+
+Root `package.json` workspace config:
+```json
+{
+  "name": "project-root",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "yarn workspace backend dev",
+    "build": "yarn workspaces run build"
+  }
+}
+```
+
+**Important:**
+- Use `yarn` not `npm` for all package management
+- Use yarn workspaces for multi-package projects
+- Use `fnm` to manage Node.js versions
+- Dependencies at root level when shared across packages
+
+### Azure Development - Use `az` CLI
+
+**Ben uses Azure CLI for cloud resource management.**
+
+Key facts about Azure CLI:
+- Installed via Homebrew: `brew install azure-cli`
+- Authentication persists after `az login`
+- Preferred over Azure Portal for automation
+- Used for Teams apps, AI Foundry, resource management
+
+Common Azure CLI patterns:
+```bash
+# Authenticate
+az login
+
+# Set default subscription
+az account set --subscription "Subscription Name"
+
+# List resources
+az resource list --resource-type "Type" -o table
+
+# Create resources programmatically
+az group create --name rg-name --location eastus
+az <service> create --name resource-name --resource-group rg-name
+```
+
+**Authentication best practices:**
+- Use `DefaultAzureCredential` in code (falls back to `az login`)
+- Check login status: `az account show`
+- Multi-tenancy: Use `az login --tenant <tenant-id>` if needed
+
+**Important:**
+- CLI-first approach (avoid portal clicks when possible)
+- Use Azure CLI extensions for specialized services (e.g., `az ml`, `az containerapp`)
+- Resource naming: lowercase with hyphens (e.g., `rg-project-dev`)
+
+## Tool Version Expectations
+
+**Always assume latest stable versions.** Tools are kept up-to-date via Homebrew.
+
+Do NOT hardcode version numbers or check specific versions unless explicitly required.
+
+```bash
+# Tools are updated regularly via
+brew upgrade
+
+# fnm manages Node.js versions dynamically
+fnm use --latest
+```
+
+Key installed tools (always latest stable):
+- `uv` - Python package manager
+- `azure-cli` - Azure command-line interface  
+- `fnm` - Fast Node Manager (Node.js version manager)
+- `git`, `gh` - Git and GitHub CLI
+- `ripgrep`, `fd`, `jq`, `yq` - Modern CLI tools
+- `tmux`, `starship`, `direnv` - Shell productivity
+
+## Project Initialization Quick Reference
+
+### New Python Project
+```bash
+mkdir project && cd project
+uv init
+# Edit pyproject.toml to add dependencies
+uv sync
+uv run main.py
+```
+
+### New Node.js Monorepo
+```bash
+mkdir project && cd project
+yarn init -y
+mkdir -p packages/{backend,frontend,shared}
+# Create package.json in each package
+# Add "workspaces": ["packages/*"] to root package.json
+yarn install
+```
+
+### New Azure Resource
+```bash
+az login
+az account set --subscription "Subscription Name"
+az group create --name rg-project-dev --location eastus
+# Create resources via CLI or IaC
+```
