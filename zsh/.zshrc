@@ -6,13 +6,6 @@
 # ---- Shell Configuration ----
 export ZSH="$HOME/.zsh"
 
-# ---- TMUX auto-attach ----
-if command -v tmux >/dev/null 2>&1; then
-  if [[ -z "$TMUX" && -n "$PS1" ]]; then
-    tmux attach -t main || tmux new -s main
-  fi
-fi
-
 # ---- Starship Prompt ----
 if command -v starship >/dev/null 2>&1; then
   eval "$(starship init zsh)"
@@ -78,6 +71,24 @@ fi
 # git
 alias gs="git status"
 alias gp="git pull"
+
+# tmux - attach/switch to session defined by TMUX_SESSION env var (set via direnv) or default to 'main'
+tm() {
+  local session="${TMUX_SESSION:-main}"
+  if [[ -n "$TMUX" ]]; then
+    # Already in tmux, switch to the session (create in detached mode if needed)
+    if ! tmux has-session -t "$session" 2>/dev/null; then
+      tmux new-session -d -s "$session"
+    fi
+    tmux switch-client -t "$session"
+  else
+    # Not in tmux, attach or create new session
+    tmux attach -t "$session" || tmux new -s "$session"
+  fi
+}
+
+# tmux detach
+alias tmd="tmux detach"
 
 # kubernetes
 alias k="kubectl"
