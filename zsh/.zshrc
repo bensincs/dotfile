@@ -98,7 +98,7 @@ alias code="code-insiders"
 alias c="clear"
 
 # go function - runs opencode with terminal-executor agent (continues last session)
-go() {
+oc() {
   opencode run --continue --model github-copilot/claude-sonnet-4.5 --agent terminal-executor "$*"
 }
 
@@ -132,3 +132,4 @@ if [[ -f "/opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; t
   source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 fi
 
+export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"

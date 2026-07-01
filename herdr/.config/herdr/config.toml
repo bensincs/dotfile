@@ -1,0 +1,72 @@
+# ================================================================
+# herdr — agent multiplexer that lives in your terminal
+# Docs: https://herdr.dev/docs/configuration/
+# Regenerate full defaults with: herdr --default-config
+# Apply changes to a running server with: herdr server reload-config
+# ================================================================
+
+# Skip first-run onboarding (we configure everything here).
+onboarding = false
+
+# ---- Updates ----
+# Installed via Homebrew, so updates come through `brew upgrade herdr`.
+# Disable herdr's own self-update prompts to avoid conflicting installs.
+[update]
+channel = "stable"
+version_check = false
+
+# ---- Terminal defaults ----
+[terminal]
+# Empty = use $SHELL (zsh), then /bin/sh.
+default_shell = ""
+# Start login shells on macOS so Homebrew/path_helper PATH is set up in panes.
+shell_mode = "auto"
+# New panes/tabs/workspaces inherit the source pane's working directory.
+new_cwd = "follow"
+
+# ---- Worktrees ----
+[worktrees]
+directory = "~/.herdr/worktrees"
+
+# ---- Theme ----
+# Matches the Solarized Dark palette used in kitty.
+[theme]
+name = "solarized"
+
+# ---- UI / sidebar ----
+[ui]
+sidebar_width = 32
+mouse_capture = true
+confirm_close = true
+# Group the agent panel by workspace/space order.
+agent_panel_sort = "priority"
+
+# ---- Notifications ----
+# `system` uses terminal-notifier (installed via Brewfile) for clickable
+# desktop notifications when an agent finishes or needs input.
+[ui.toast]
+delivery = "system"
+delay_seconds = 1
+
+[ui.toast.clipboard]
+enabled = true
+position = "bottom-center"
+
+# ---- Sound ----
+[ui.sound]
+enabled = true
+
+[ui.sound.agents]
+# Droid is noisy; keep it muted.
+droid = "off"
+
+# ---- Agent session restore ----
+# Restart supported agent panes in their native sessions after a server
+# restart (Claude Code, Codex, OpenCode, Copilot CLI, etc.).
+[session]
+resume_agents_on_restore = true
+
+# ---- Keybindings ----
+# Defaults are prefix-first and safe. Prefix set to ctrl+a to match tmux.
+[keys]
+prefix = "ctrl+a"

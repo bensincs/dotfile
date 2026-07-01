@@ -1,0 +1,13 @@
+{
+  "name": "opencode-plugins",
+  "version": "1.0.0",
+  "description": "OpenCode plugins",
+  "type": "module",
+  "dependencies": {
+    "@opencode-ai/plugin": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

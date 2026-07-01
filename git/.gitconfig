@@ -30,3 +30,8 @@
 	excludesfile = ~/.gitignore_global
 [alias]
 	ai = !opencode run /commit
+[credential "azrepos:org/incep-cortex"]
+	azureAuthority = https://login.microsoftonline.com/5ac4936b-1ac4-4e57-9e2b-48673491865e
+	username = bensinclair@microsoft.com
+[credential "http://localhost:3000"]
+	provider = generic

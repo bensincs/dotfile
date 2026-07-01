@@ -53,6 +53,7 @@ STOW_PACKAGES=(
   zsh
   tmux
   opencode
+  herdr
 )
 
 for pkg in "${STOW_PACKAGES[@]}"; do
