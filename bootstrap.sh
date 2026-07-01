@@ -54,6 +54,7 @@ STOW_PACKAGES=(
   tmux
   opencode
   herdr
+  copilot
 )
 
 for pkg in "${STOW_PACKAGES[@]}"; do

@@ -69,6 +69,9 @@ brew "nss"
 tap "anomalyco/tap"
 brew "opencode"
 
+# --- GitHub Copilot CLI ---
+cask "copilot-cli"
+
 # --- Notifications ---
 brew "terminal-notifier"
 
