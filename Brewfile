@@ -72,7 +72,11 @@ brew "opencode"
 # --- GitHub Copilot CLI ---
 cask "copilot-cli"
 
+# --- Claude Code ---
+cask "claude-code"
+
 # --- Notifications ---
+# Required by herdr's [ui.toast] delivery = "system" for desktop toasts.
 brew "terminal-notifier"
 
 # --- Terminal ---

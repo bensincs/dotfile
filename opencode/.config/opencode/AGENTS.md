@@ -45,3 +45,11 @@ When `HERDR_ENV=1`, you are running inside a herdr-managed pane. In that case:
 
 When `HERDR_ENV` is unset, ignore the above and behave normally; do not try to
 control herdr from outside it.
+
+## WorkIQ (Microsoft 365 data)
+
+When asked about Teams messages/channels, email, meetings, or other Microsoft
+365 data, use the `workiq` MCP tools rather than guessing or saying you have
+no way to check. This covers questions like "what's in the Engineering
+channel today", "what did X say about Y", or "what's on my calendar
+tomorrow."

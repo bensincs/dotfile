@@ -6,5 +6,12 @@
       "description": "Generate a conventional commit message and create a commit",
       "agent": "general"
     }
-  }
+  },
+  "mcp": {
+    "workiq": {
+      "type": "local",
+      "command": ["npx", "-y", "@microsoft/workiq@latest", "mcp"]
+    }
+  },
+  "plugin": []
 }
