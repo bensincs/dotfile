@@ -895,7 +895,8 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     let body = `❓ <b>${escHtml(q.header || "Question")}${counter}</b>\n${mdToHtml(
       String(q.question || ""),
     )}`;
-    if (q.multiple) body += `\n<i>Select any, then Submit.</i>`;
+    if (q.multiple) body += `\n<i>Select any, then Submit — or type your own.</i>`;
+    else body += `\n<i>Tap an option, or type your own answer.</i>`;
     return body;
   }
 
@@ -1328,6 +1329,112 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     }
   }
 
+  // Post a plain notice into the window's topic.
+  async function notify(html, silent = true) {
+    const tid = await ensureTopic();
+    if (!tid) return;
+    await tg(token, "sendMessage", {
+      chat_id: groupId,
+      message_thread_id: tid,
+      text: html,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      disable_notification: silent,
+    });
+  }
+
+  // Find a pending question owned by this window (for typed custom answers).
+  function findPendingQuestion() {
+    for (const entry of pendingByKey.values()) {
+      if (entry.kind === "question") return entry;
+    }
+    return null;
+  }
+
+  const HELP_TEXT =
+    "🤖 <b>opencode bridge</b>\n" +
+    "Type a message to send it to this session.\n\n" +
+    "<b>Commands</b>\n" +
+    "/help — show this help\n" +
+    "/status — session title &amp; state\n" +
+    "/stop — interrupt the current turn\n" +
+    "/new — start a fresh session\n" +
+    "When a question is shown, tap a button or just type your answer.";
+
+  async function handleCommand(cmd, rest) {
+    switch (cmd) {
+      case "/help":
+      case "/start":
+        await notify(HELP_TEXT);
+        return true;
+      case "/status": {
+        const title = currentSessionID
+          ? titleCache.get(currentSessionID) || appliedName || "(untitled)"
+          : "(no active session)";
+        const state = typingTimer ? "working" : "idle";
+        await notify(
+          `📊 <b>Status</b>\nProject: ${escHtml(projectName)}\nSession: ${escHtml(
+            String(title),
+          )}\nState: ${state}`,
+        );
+        return true;
+      }
+      case "/stop":
+      case "/abort":
+      case "/interrupt": {
+        if (!currentSessionID) {
+          await notify("Nothing to stop.");
+          return true;
+        }
+        const ok =
+          (await apiReply(`/session/${currentSessionID}/abort`)) ||
+          (await apiReply(`/session/${currentSessionID}/interrupt`));
+        stopTyping();
+        await notify(ok ? "🛑 Interrupted." : "Couldn't interrupt.");
+        return true;
+      }
+      case "/new": {
+        try {
+          const sid = (await client.session.create({ body: {} }))?.data?.id;
+          if (sid) {
+            currentSessionID = sid;
+            await notify("🆕 New session started. Send a message to begin.");
+          } else {
+            await notify("Couldn't start a new session.");
+          }
+        } catch (err) {
+          await log("error", "failed to create session (/new)", { error: String(err) });
+          await notify("Couldn't start a new session.");
+        }
+        return true;
+      }
+      default:
+        await notify(`Unknown command ${escHtml(cmd)}. Try /help.`);
+        return true;
+    }
+  }
+
+  // Route an incoming text message: slash command, custom answer to a pending
+  // question, or a normal prompt.
+  async function handleIncomingText(text) {
+    const trimmed = text.trim();
+    if (trimmed.startsWith("/")) {
+      const [cmd, ...restParts] = trimmed.split(/\s+/);
+      await handleCommand(cmd.toLowerCase(), restParts.join(" "));
+      return;
+    }
+    // If a question is awaiting input, treat typed text as the answer to the
+    // current question (opencode always allows a typed/custom answer).
+    const q = findPendingQuestion();
+    if (q) {
+      q.answers[q.qIndex] = [trimmed];
+      await advanceQuestion(q);
+      return;
+    }
+    await injectPrompt(trimmed);
+  }
+
+
   async function drainInbox() {
     let content;
     try {
@@ -1357,7 +1464,7 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
       if (msg.type === "callback") {
         await handleCallback(msg);
       } else if (typeof msg.text === "string" && msg.text) {
-        await injectPrompt(msg.text);
+        await handleIncomingText(msg.text);
       }
     }
   }
@@ -1367,6 +1474,17 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
   // ===========================================================================
   ensureTopic().catch(() => {});
   sweep().catch(() => {});
+  // Register the bot's command menu (best-effort, once per process is fine).
+  if (incomingEnabled) {
+    tg(token, "setMyCommands", {
+      commands: [
+        { command: "help", description: "Show help" },
+        { command: "status", description: "Session title & state" },
+        { command: "stop", description: "Interrupt the current turn" },
+        { command: "new", description: "Start a fresh session" },
+      ],
+    }).catch(() => {});
+  }
   const timers = [
     setInterval(() => sweep().catch(() => {}), SWEEP_MS),
   ];
@@ -1445,9 +1563,20 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
             await postResponse(sessionID);
             break;
           }
-          case "session.error":
+          case "session.error": {
             stopTyping();
+            const err = props?.error ?? info?.error ?? props;
+            const name = err?.name || err?.data?.name || "Error";
+            const message =
+              err?.data?.message || err?.message || (typeof err === "string" ? err : "");
+            await notify(
+              `⚠️ <b>${escHtml(String(name))}</b>${
+                message ? `\n${escHtml(String(message)).slice(0, 1000)}` : ""
+              }`,
+              false,
+            ).catch(() => {});
             break;
+          }
           case "permission.asked": {
             // opencode is asking whether it may do something -> post buttons.
             if (props?.id) await postPermissionPrompt(props);
