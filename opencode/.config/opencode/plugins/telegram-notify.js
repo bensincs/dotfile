@@ -11,11 +11,14 @@
 //
 // PERMISSIONS & QUESTIONS: when opencode asks whether it may do something
 // (permission.asked) or asks you to pick an option (question.asked), an
-// inline-keyboard prompt is posted into the window's topic. Tapping a button
-// answers it via the opencode client (permission.reply / question.reply /
-// question.reject). This requires incoming to be enabled (the poller routes the
-// button tap). If incoming is disabled the prompt is shown as text to answer in
-// the terminal.
+// inline-keyboard prompt is posted into the window's topic. Tap a button — or,
+// for questions, just type your answer — and it is applied via the opencode
+// HTTP API (POST /permission/{id}/reply, /question/{id}/reply|reject) through
+// the plugin client's transport. Requires incoming enabled (the poller routes
+// button taps); if disabled, prompts are shown as text to answer in the terminal.
+//
+// COMMANDS (type in a topic): /help, /status, /stop (interrupt), /new (fresh
+// session). The bot's command menu is registered via setMyCommands.
 //
 //   A Telegram bot has ONE incoming stream (getUpdates is single-consumer and
 //   can't be filtered per-topic), so we can't let every window poll. Instead one
