@@ -1061,9 +1061,11 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
 
     // Stop button: abort the current turn.
     if (action === "stop") {
-      if (currentSessionID) {
-        await apiReply(`/session/${currentSessionID}/abort`);
+      if (!currentSessionID) {
+        await ack(rec, "Nothing to stop.");
+        return;
       }
+      await apiReply(`/session/${currentSessionID}/abort`);
       stopTyping();
       await ack(rec, "Stopped");
       return;
@@ -1083,11 +1085,13 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
       return;
     }
     if (action === "pm") {
-      if (!["once", "always", "reject"].includes(arg)) return ack(rec);
+      if (entry.kind !== "permission" || !["once", "always", "reject"].includes(arg))
+        return ack(rec);
       await resolvePermission(entry, rec, arg);
       return;
     }
     if (["qa", "qt", "qs", "qx"].includes(action)) {
+      if (entry.kind !== "question") return ack(rec);
       await handleQuestionCallback(entry, rec, action, Number(arg));
       return;
     }
@@ -1151,12 +1155,15 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
   let statusMsgId = null;
   let statusText = "⏳ Working…";
   let statusCreating = null;
+  const statusEnabled = (stopButtonEnabled || toolActivityEnabled) && incomingEnabled;
 
   function statusKeyboard() {
-    return { inline_keyboard: [[{ text: "🛑 Stop", callback_data: "stop" }]] };
+    return stopButtonEnabled
+      ? { inline_keyboard: [[{ text: "🛑 Stop", callback_data: "stop" }]] }
+      : undefined;
   }
   async function ensureStatusMessage() {
-    if (!stopButtonEnabled || !incomingEnabled) return;
+    if (!statusEnabled) return;
     if (statusMsgId || statusCreating) return;
     statusCreating = (async () => {
       const tid = await ensureTopic();
@@ -1177,12 +1184,11 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
       statusCreating = null;
     }
   }
+  // Edit-only: never creates a message (creation is owned by startTyping), so a
+  // late tool event can't orphan a status message after the turn ended.
   async function updateStatus(text) {
     statusText = text;
-    if (!statusMsgId) {
-      await ensureStatusMessage();
-      return;
-    }
+    if (!statusMsgId) return;
     await tg(token, "editMessageText", {
       chat_id: groupId,
       message_id: statusMsgId,
@@ -1192,6 +1198,15 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     }).catch(() => {});
   }
   async function clearStatusMessage() {
+    // Wait for any in-flight creation so we delete the message it produces
+    // instead of racing past it and leaving it orphaned.
+    if (statusCreating) {
+      try {
+        await statusCreating;
+      } catch {
+        // ignore
+      }
+    }
     const id = statusMsgId;
     statusMsgId = null;
     statusText = "⏳ Working…";
