@@ -404,7 +404,7 @@ async function readJson(file) {
   }
 }
 
-export const TelegramNotifyPlugin = async ({ client, directory }) => {
+export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const groupId = process.env.TELEGRAM_GROUP_ID;
   if (!token || !groupId) return {};
@@ -419,6 +419,32 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
       // best-effort
     }
   };
+
+  // Reply to opencode's interactive prompts through the plugin client's own
+  // transport. A plain fetch(serverUrl) does NOT work — opencode injects a
+  // custom fetch — so we go through client._client.post, which the SDK uses for
+  // every other call. Routes are session-less (verified from the server's
+  // OpenAPI doc): /question/{id}/reply, /question/{id}/reject, /permission/{id}/reply.
+  async function apiReply(pathSuffix, body) {
+    try {
+      const opts = { url: pathSuffix };
+      if (body !== undefined) opts.body = body;
+      const res = await client._client.post(opts);
+      const status = res?.response?.status;
+      const ok = !res?.error && (status === undefined || status < 400);
+      if (!ok) {
+        await log("error", "reply failed", {
+          path: pathSuffix,
+          status,
+          error: res?.error ? String(res.error) : undefined,
+        });
+      }
+      return ok;
+    } catch (err) {
+      await log("error", "reply threw", { path: pathSuffix, error: String(err) });
+      return false;
+    }
+  }
 
   const projectName =
     (typeof directory === "string" &&
@@ -712,11 +738,12 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
   // window's topic and resolved via the opencode client when a button is
   // tapped. Button taps route back here through the poller -> inbox pipeline.
   //
-  //   Permission API: client.permission.reply({ requestID, reply })
-  //                   reply in "once" | "always" | "reject"
-  //   Question API:   client.question.reply({ requestID, answers })
-  //                   answers = [[label,...] per question, in order]
-  //                   client.question.reject({ requestID })
+  //   Permission reply: POST /session/{sessionID}/permission/{requestID}/reply
+  //                      body { reply: "once" | "always" | "reject" }
+  //   Question reply:    POST /session/{sessionID}/question/{requestID}/reply
+  //                      body { answers: [[label,...] per question, in order] }
+  //   Question reject:   POST /session/{sessionID}/question/{requestID}/reject
+  //   (sent via client._client.post — see apiReply above.)
   //
   // callback_data is capped at 64 bytes, so prompts are keyed by a short counter
   // and options are referenced by index rather than embedding ids/labels.
@@ -818,20 +845,15 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
   }
 
   async function resolvePermission(entry, rec, reply) {
-    try {
-      await client.permission.reply({ requestID: entry.requestID, reply });
-      await log("info", "permission answered from Telegram", {
-        requestID: entry.requestID,
-        reply,
-      });
-    } catch (err) {
-      await log("error", "failed to reply to permission", {
-        error: String(err),
-        requestID: entry.requestID,
-      });
-      await ack(rec, "Failed — try the terminal.");
+    const ok = await apiReply(`/permission/${entry.requestID}/reply`, { reply });
+    if (!ok) {
+      await ack(rec, "Failed — answer in the terminal.");
       return;
     }
+    await log("info", "permission answered from Telegram", {
+      requestID: entry.requestID,
+      reply,
+    });
     clearPending(entry);
     await ack(rec, (PERM_LABEL[reply] || reply).replace(/^\S+\s/, ""));
     await editPrompt(entry, `🔐 <b>Permission</b> — ${PERM_LABEL[reply] || reply}`);
@@ -940,18 +962,24 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
       return;
     }
     // All questions answered -> reply.
-    try {
-      await client.question.reply({ requestID: entry.requestID, answers: entry.answers });
-      await log("info", "question answered from Telegram", {
-        requestID: entry.requestID,
-        answers: entry.answers,
-      });
-    } catch (err) {
+    const ok = await apiReply(`/question/${entry.requestID}/reply`, {
+      answers: entry.answers,
+    });
+    if (!ok) {
       await log("error", "failed to reply to question", {
-        error: String(err),
         requestID: entry.requestID,
       });
+      clearPending(entry);
+      await editPrompt(
+        entry,
+        `❓ <b>Question</b> — couldn't send answer; please answer in the terminal`,
+      );
+      return;
     }
+    await log("info", "question answered from Telegram", {
+      requestID: entry.requestID,
+      answers: entry.answers,
+    });
     clearPending(entry);
     const summary = entry.answers.map((a) => a.join(", ")).join(" | ");
     await editPrompt(entry, `❓ <b>Answered</b> — ${escHtml(summary)}`);
@@ -962,10 +990,10 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
     const opts = Array.isArray(q.options) ? q.options : [];
 
     if (action === "qx") {
-      try {
-        await client.question.reject({ requestID: entry.requestID });
-      } catch (err) {
-        await log("error", "failed to reject question", { error: String(err) });
+      const ok = await apiReply(`/question/${entry.requestID}/reject`);
+      if (!ok) {
+        await ack(rec, "Failed — answer in the terminal.");
+        return;
       }
       clearPending(entry);
       await ack(rec, "Cancelled");
