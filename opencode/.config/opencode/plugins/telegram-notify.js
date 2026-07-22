@@ -60,6 +60,8 @@ const POLLER_YIELD_MS = 30_000; // back off this long after a 409 conflict
 const LONG_POLL_S = 25; // getUpdates long-poll timeout
 const TYPING_ACTION_MS = 4_000; // re-send "typing" this often while replying
 const TYPING_MAX_MS = 20 * 60_000; // safety cap so typing can't get stuck on
+const SEND_GAP_MS = 1_100; // min spacing between queued sends (~1 msg/sec/chat)
+const SEND_MAX_RETRIES = 5; // per-message retry attempts on 429/transient errors
 
 const ROOT = path.join(
   process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state"),
@@ -537,6 +539,77 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
     }
   }
 
+  // ===========================================================================
+  // Outgoing send queue: serialize sendMessage calls, pace them to respect
+  // Telegram's per-chat rate limit, and retry on 429 using retry_after. Without
+  // this, bursts of chunked replies get 429'd and silently dropped.
+  // ===========================================================================
+  const sendQueue = [];
+  let sendDraining = false;
+  let lastSendAt = 0;
+
+  async function drainSendQueue() {
+    if (sendDraining) return;
+    sendDraining = true;
+    try {
+      while (sendQueue.length) {
+        const job = sendQueue[0];
+        // Pace: ensure a minimum gap since the previous successful send.
+        const wait = SEND_GAP_MS - (Date.now() - lastSendAt);
+        if (wait > 0) await sleep(wait);
+
+        const r = await tg(token, "sendMessage", job.payload);
+        if (r?.ok) {
+          lastSendAt = Date.now();
+          sendQueue.shift();
+          continue;
+        }
+
+        // 429 -> honor retry_after and try the SAME job again (don't drop it).
+        if (r?.error_code === 429) {
+          const retryAfter = Number(r?.parameters?.retry_after) || 1;
+          await log("warn", "sendMessage rate-limited; backing off", {
+            retry_after: retryAfter,
+            attempt: job.attempts + 1,
+            queued: sendQueue.length,
+          });
+          job.attempts += 1;
+          if (job.attempts >= SEND_MAX_RETRIES) {
+            await log("error", "sendMessage dropped after retries (429)", {
+              description: r?.description,
+            });
+            sendQueue.shift();
+          } else {
+            await sleep(retryAfter * 1000 + 250);
+          }
+          continue;
+        }
+
+        // Other errors: log and retry a few times, else drop so the queue moves.
+        job.attempts += 1;
+        await log("error", "sendMessage failed", {
+          error_code: r?.error_code,
+          description: r?.description,
+          attempt: job.attempts,
+        });
+        if (job.attempts >= SEND_MAX_RETRIES) {
+          sendQueue.shift();
+        } else {
+          await sleep(500 * job.attempts);
+        }
+      }
+    } finally {
+      sendDraining = false;
+    }
+  }
+
+  function enqueueSend(payload) {
+    sendQueue.push({ payload, attempts: 0 });
+    drainSendQueue().catch(async (e) =>
+      log("error", "send queue crashed", { error: String(e) }),
+    );
+  }
+
   async function postResponse(sessionID) {
     const tid = await ensureTopic();
     if (!tid) return;
@@ -559,8 +632,10 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
     const chunks = splitHtml(html, TG_LIMIT - prefix.length);
     if (!chunks.length) return;
 
+    // Enqueue every chunk; the queue serializes, paces, and retries them so
+    // none are dropped to rate limiting.
     for (let i = 0; i < chunks.length; i++) {
-      const payload = {
+      enqueueSend({
         chat_id: groupId,
         message_thread_id: tid,
         text: (i === 0 ? prefix : "") + chunks[i],
@@ -568,8 +643,7 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
         disable_web_page_preview: true,
         // Only the first chunk should ping; the rest arrive silently.
         disable_notification: silent || i > 0,
-      };
-      await tg(token, "sendMessage", payload);
+      });
     }
   }
 
@@ -580,11 +654,18 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
   async function sendTyping() {
     const tid = await ensureTopic();
     if (!tid) return;
-    await tg(token, "sendChatAction", {
+    const r = await tg(token, "sendChatAction", {
       chat_id: groupId,
       message_thread_id: tid,
       action: "typing",
     });
+    // Typing is best-effort, but log failures so flakiness is diagnosable.
+    if (r && r.ok === false) {
+      await log("warn", "sendChatAction (typing) failed", {
+        error_code: r?.error_code,
+        description: r?.description,
+      });
+    }
   }
   function startTyping() {
     if (typingTimer) return;
