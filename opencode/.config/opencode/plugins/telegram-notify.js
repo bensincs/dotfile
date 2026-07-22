@@ -40,6 +40,8 @@
 //                                  (default: "@<TELEGRAM_USERNAME> " if TELEGRAM_USERNAME set)
 //   TELEGRAM_USERNAME              optional Telegram handle (without @) used as default notify prefix
 //   TELEGRAM_DISABLE_NOTIFICATIONS set to "1" to send messages silently (disable notifications)
+//   TELEGRAM_STOP_BUTTON          set to "0" to disable the live Stop-button status message
+//   TELEGRAM_TOOL_ACTIVITY        set to "1" to show the running tool in the status message
 //
 // Setup: create a supergroup, turn ON Topics, add the bot as an admin WITH
 // "Manage Topics". For INCOMING, also disable the bot's privacy mode in
@@ -418,6 +420,12 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
   const groupId = process.env.TELEGRAM_GROUP_ID;
   if (!token || !groupId) return {};
   const incomingEnabled = process.env.TELEGRAM_DISABLE_INCOMING !== "1";
+  const stopButtonEnabled = process.env.TELEGRAM_STOP_BUTTON !== "0"; // on by default
+  const toolActivityEnabled = process.env.TELEGRAM_TOOL_ACTIVITY === "1"; // opt-in
+
+  // Model/agent selected from Telegram (applied to Telegram-initiated prompts).
+  let selectedAgent = null; // string | null
+  let selectedModel = null; // { providerID, modelID } | null
 
   const log = async (level, message, extra) => {
     try {
@@ -1047,9 +1055,28 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
   // ---- Callback dispatch (invoked from the inbox consumer) ------------------
   async function handleCallback(rec) {
     const parts = String(rec.data || "").split(":");
-    const action = parts[0]; // pm | qa | qt | qs | qx
+    const action = parts[0]; // pm | qa | qt | qs | qx | pk | stop
     const key = parts[1];
     const arg = parts[2];
+
+    // Stop button: abort the current turn.
+    if (action === "stop") {
+      if (currentSessionID) {
+        await apiReply(`/session/${currentSessionID}/abort`);
+      }
+      stopTyping();
+      await ack(rec, "Stopped");
+      return;
+    }
+
+    // Model/agent picker.
+    if (action === "pk") {
+      const entry = key && pendingByKey.get(key);
+      if (!entry || entry.kind !== "picker") return ack(rec, "No longer active.");
+      await handlePickerCallback(entry, rec, Number(arg));
+      return;
+    }
+
     const entry = key && pendingByKey.get(key);
     if (!entry) {
       await ack(rec, "This prompt is no longer active.");
@@ -1100,6 +1127,7 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     }
   }
   function startTyping() {
+    ensureStatusMessage().catch(() => {});
     if (typingTimer) return;
     typingStart = Date.now();
     sendTyping().catch(() => {});
@@ -1113,6 +1141,64 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     if (typingTimer) {
       clearInterval(typingTimer);
       typingTimer = null;
+    }
+    clearStatusMessage().catch(() => {});
+  }
+
+  // ---- Live status message: a single "working" message carrying a Stop button
+  // and (optionally) the current tool activity, edited in place and removed when
+  // the turn ends. ---------------------------------------------------------
+  let statusMsgId = null;
+  let statusText = "⏳ Working…";
+  let statusCreating = null;
+
+  function statusKeyboard() {
+    return { inline_keyboard: [[{ text: "🛑 Stop", callback_data: "stop" }]] };
+  }
+  async function ensureStatusMessage() {
+    if (!stopButtonEnabled || !incomingEnabled) return;
+    if (statusMsgId || statusCreating) return;
+    statusCreating = (async () => {
+      const tid = await ensureTopic();
+      if (!tid) return;
+      const r = await tg(token, "sendMessage", {
+        chat_id: groupId,
+        message_thread_id: tid,
+        text: statusText,
+        parse_mode: "HTML",
+        disable_notification: true,
+        reply_markup: statusKeyboard(),
+      });
+      if (r?.ok && r.result?.message_id) statusMsgId = r.result.message_id;
+    })();
+    try {
+      await statusCreating;
+    } finally {
+      statusCreating = null;
+    }
+  }
+  async function updateStatus(text) {
+    statusText = text;
+    if (!statusMsgId) {
+      await ensureStatusMessage();
+      return;
+    }
+    await tg(token, "editMessageText", {
+      chat_id: groupId,
+      message_id: statusMsgId,
+      text,
+      parse_mode: "HTML",
+      reply_markup: statusKeyboard(),
+    }).catch(() => {});
+  }
+  async function clearStatusMessage() {
+    const id = statusMsgId;
+    statusMsgId = null;
+    statusText = "⏳ Working…";
+    if (id) {
+      await tg(token, "deleteMessage", { chat_id: groupId, message_id: id }).catch(
+        () => {},
+      );
     }
   }
 
@@ -1242,26 +1328,46 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     if (!m || m.from?.is_bot) return;
     if (String(m.chat?.id) !== String(groupId)) return; // DMs / other chats
     if (!m.is_topic_message || !m.message_thread_id) return; // General topic
-    const text = typeof m.text === "string" ? m.text.trim() : "";
-    if (!text) return;
 
     const target = await findWindowByThread(m.message_thread_id);
     if (!target) return; // topic whose window is gone -> drop
-    try {
-      await mkdir(INBOX_DIR, { recursive: true });
-      await appendFile(
-        path.join(INBOX_DIR, `${target.pid}.jsonl`),
-        JSON.stringify({
-          type: "text",
-          update_id: update.update_id,
-          text,
-          messageId: m.message_id,
-          ts: Date.now(),
-        }) + "\n",
-      );
-    } catch (err) {
-      await log("warn", "inbox append failed", { error: String(err) });
+    const inboxFile = path.join(INBOX_DIR, `${target.pid}.jsonl`);
+    const append = async (rec) => {
+      try {
+        await mkdir(INBOX_DIR, { recursive: true });
+        await appendFile(inboxFile, JSON.stringify(rec) + "\n");
+      } catch (err) {
+        await log("warn", "inbox append failed", { error: String(err) });
+      }
+    };
+
+    // Photo / image-document attachments -> a file record (with optional caption).
+    const photo = Array.isArray(m.photo) && m.photo.length ? m.photo.at(-1) : null;
+    const doc =
+      m.document && /^image\//.test(m.document.mime_type || "") ? m.document : null;
+    if (photo || doc) {
+      await append({
+        type: "file",
+        update_id: update.update_id,
+        fileId: photo ? photo.file_id : doc.file_id,
+        mime: doc?.mime_type || "image/jpeg",
+        filename: doc?.file_name || "photo.jpg",
+        caption: typeof m.caption === "string" ? m.caption.trim() : "",
+        messageId: m.message_id,
+        ts: Date.now(),
+      });
+      return;
     }
+
+    const text = typeof m.text === "string" ? m.text.trim() : "";
+    if (!text) return;
+    await append({
+      type: "text",
+      update_id: update.update_id,
+      text,
+      messageId: m.message_id,
+      ts: Date.now(),
+    });
   }
 
   async function pollLoop() {
@@ -1322,7 +1428,8 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
   const seenUpdateIds = new Set();
   const SEEN_MAX = 4000; // bound the dedup set so it can't grow forever
 
-  async function injectPrompt(text) {
+  async function injectParts(parts) {
+    if (!Array.isArray(parts) || !parts.length) return;
     let sid = currentSessionID;
     if (!sid) {
       try {
@@ -1337,14 +1444,51 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     }
     if (!sid) return;
     startTyping(); // Telegram-initiated turn -> show typing immediately
+    const body = { parts };
+    if (selectedAgent) body.agent = selectedAgent;
+    if (selectedModel) body.model = selectedModel;
     try {
-      await client.session.prompt({
-        path: { id: sid },
-        body: { parts: [{ type: "text", text }] },
-      });
+      await client.session.prompt({ path: { id: sid }, body });
     } catch (err) {
       await log("error", "failed to inject prompt", { error: String(err) });
     }
+  }
+
+  async function injectPrompt(text) {
+    await injectParts([{ type: "text", text }]);
+  }
+
+  // Download a Telegram file by id and return a data: URL, or null on failure.
+  async function fetchTelegramFileDataUrl(fileId, mime) {
+    try {
+      const meta = await tg(token, "getFile", { file_id: fileId });
+      const filePath = meta?.ok && meta.result?.file_path;
+      if (!filePath) return null;
+      const res = await fetch(`${API}/file/bot${token}/${filePath}`, {
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!res.ok) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
+      return `data:${mime || "application/octet-stream"};base64,${buf.toString("base64")}`;
+    } catch (err) {
+      await log("error", "failed to download telegram file", { error: String(err) });
+      return null;
+    }
+  }
+
+  async function handleIncomingFile(rec, messageId) {
+    await react(messageId, "👀");
+    const url = await fetchTelegramFileDataUrl(rec.fileId, rec.mime);
+    if (!url) {
+      await notify("⚠️ Couldn't download that attachment.", false);
+      return;
+    }
+    const parts = [
+      { type: "file", mime: rec.mime, filename: rec.filename, url },
+    ];
+    const caption = (rec.caption || "").trim();
+    parts.push({ type: "text", text: caption || "(image attached)" });
+    await injectParts(parts);
   }
 
   // Post a plain notice into the window's topic.
@@ -1369,6 +1513,99 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     return null;
   }
 
+  // ---- Model / agent pickers ------------------------------------------------
+  async function apiGet(pathSuffix) {
+    try {
+      const res = await client._client.get({ url: pathSuffix });
+      if (res?.error) return null;
+      return res?.data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function postPicker(pickerType, items) {
+    // items: [{ label, value }]
+    if (!incomingEnabled) {
+      await notify(
+        `<b>${pickerType}</b>\n` +
+          items.map((it, i) => `${i + 1}. ${escHtml(it.label)}`).join("\n"),
+      );
+      return;
+    }
+    const tid = await ensureTopic();
+    if (!tid) return;
+    const key = `k${++cbKeyCounter}`;
+    const rows = items
+      .slice(0, 30)
+      .map((it, i) => [
+        { text: it.label.slice(0, 48), callback_data: `pk:${key}:${i}` },
+      ]);
+    const r = await tg(token, "sendMessage", {
+      chat_id: groupId,
+      message_thread_id: tid,
+      text: `Pick a ${pickerType}:`,
+      reply_markup: { inline_keyboard: rows },
+    });
+    if (r?.ok && r.result?.message_id) {
+      pendingByKey.set(key, {
+        kind: "picker",
+        key,
+        pickerType,
+        items,
+        messageId: r.result.message_id,
+      });
+    }
+  }
+
+  async function handlePickerCallback(entry, rec, idx) {
+    const it = entry.items[idx];
+    if (!it) return ack(rec, "No longer active.");
+    if (entry.pickerType === "agent") {
+      selectedAgent = it.value;
+      await ack(rec, `Agent: ${it.value}`);
+      await editPrompt(entry, `🧠 <b>Agent</b> → ${escHtml(it.value)}`);
+    } else if (entry.pickerType === "model") {
+      selectedModel = it.value; // { providerID, modelID }
+      await ack(rec, `Model: ${it.label}`);
+      await editPrompt(entry, `🧩 <b>Model</b> → ${escHtml(it.label)}`);
+    }
+    clearPending(entry);
+  }
+
+  async function showAgentPicker() {
+    const data = await apiGet("/agent");
+    const agents = Array.isArray(data) ? data : [];
+    const items = agents
+      .filter((a) => a && a.name && a.mode !== "subagent")
+      .map((a) => ({ label: a.name, value: a.name }));
+    if (!items.length) {
+      await notify("No agents available.");
+      return;
+    }
+    await postPicker("agent", items);
+  }
+
+  async function showModelPicker() {
+    const data = await apiGet("/config/providers");
+    const providers = data?.providers || [];
+    const items = [];
+    for (const p of providers) {
+      const models = p?.models || {};
+      for (const modelID of Object.keys(models)) {
+        items.push({
+          label: `${p.id}/${modelID}`,
+          value: { providerID: p.id, modelID },
+        });
+      }
+    }
+    if (!items.length) {
+      await notify("No models available.");
+      return;
+    }
+    await postPicker("model", items);
+  }
+
   const HELP_TEXT =
     "🤖 <b>opencode bridge</b>\n" +
     "Type a message to send it to this session.\n\n" +
@@ -1377,7 +1614,9 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     "/status — session title &amp; state\n" +
     "/stop — interrupt the current turn\n" +
     "/new — start a fresh session\n" +
-    "When a question is shown, tap a button or just type your answer.";
+    "/model — choose the model\n" +
+    "/agent — choose the agent\n" +
+    "Send a photo to attach it. When a question is shown, tap a button or type your answer.";
 
   async function handleCommand(cmd, rest) {
     switch (cmd) {
@@ -1393,8 +1632,31 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
         await notify(
           `📊 <b>Status</b>\nProject: ${escHtml(projectName)}\nSession: ${escHtml(
             String(title),
-          )}\nState: ${state}`,
+          )}\nState: ${state}\nAgent: ${escHtml(selectedAgent || "default")}\nModel: ${escHtml(
+            selectedModel ? `${selectedModel.providerID}/${selectedModel.modelID}` : "default",
+          )}`,
         );
+        return true;
+      }
+      case "/model": {
+        const arg = (rest || "").trim();
+        if (arg.includes("/")) {
+          const [providerID, ...rest2] = arg.split("/");
+          selectedModel = { providerID, modelID: rest2.join("/") };
+          await notify(`🧩 Model → ${escHtml(arg)}`);
+        } else {
+          await showModelPicker();
+        }
+        return true;
+      }
+      case "/agent": {
+        const arg = (rest || "").trim();
+        if (arg) {
+          selectedAgent = arg;
+          await notify(`🧠 Agent → ${escHtml(arg)}`);
+        } else {
+          await showAgentPicker();
+        }
         return true;
       }
       case "/stop":
@@ -1504,6 +1766,8 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
       }
       if (msg.type === "callback") {
         await handleCallback(msg);
+      } else if (msg.type === "file") {
+        await handleIncomingFile(msg, msg.messageId);
       } else if (typeof msg.text === "string" && msg.text) {
         await handleIncomingText(msg.text, msg.messageId);
       }
@@ -1523,6 +1787,8 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
         { command: "status", description: "Session title & state" },
         { command: "stop", description: "Interrupt the current turn" },
         { command: "new", description: "Start a fresh session" },
+        { command: "model", description: "Choose the model" },
+        { command: "agent", description: "Choose the agent" },
       ],
     }).catch(() => {});
   }
@@ -1566,6 +1832,22 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
         if (!isChild(sessionID)) startTyping();
       } catch (err) {
         await log("error", "chat.message handler failed", { error: String(err) });
+      }
+    },
+    "tool.execute.before": async (input) => {
+      if (!toolActivityEnabled || isChild(input?.sessionID)) return;
+      try {
+        await updateStatus(`🔧 <b>${escHtml(String(input?.tool || "tool"))}</b>…`);
+      } catch {
+        // best-effort
+      }
+    },
+    "tool.execute.after": async (input) => {
+      if (!toolActivityEnabled || isChild(input?.sessionID)) return;
+      try {
+        await updateStatus("⏳ Working…");
+      } catch {
+        // best-effort
       }
     },
     event: async ({ event }) => {
