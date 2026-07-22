@@ -72,19 +72,21 @@ const OFFSET_FILE = path.join(ROOT, "offset.json");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function truncate(text, max = TG_LIMIT) {
-  if (typeof text !== "string") return "";
-  if (text.length <= max) return text;
-  return text.slice(0, max - 16).trimEnd() + "\n…(truncated)";
-}
-
-// Convert a *very small* subset of Markdown to Telegram-safe HTML.
-// This is intentionally conservative: handle code blocks, inline code,
-// links, bold and italic, and escape HTML. It uses placeholders for code
-// regions so formatting inside code isn't mangled.
-// Use markdown-it to render markdown to an HTML subset compatible with Telegram's
-// HTML parse_mode. We disable raw HTML in source and customize the renderer to
-// emit only tags supported by Telegram: <b>, <i>, <a>, <code>, <pre>.
+// Render Markdown to an HTML subset compatible with Telegram's HTML parse_mode.
+// markdown-it does the parsing; custom renderer rules map every construct onto
+// the tags Telegram actually supports (<b>, <i>, <s>, <a>, <code>, <pre>) or a
+// plaintext equivalent. Raw HTML in the source is disabled. Coverage:
+//   headings          -> <b>…</b>
+//   bold / italic     -> <b> / <i>
+//   strikethrough     -> <s>
+//   inline code       -> <code>
+//   fenced/indented   -> <pre>
+//   links             -> <a href>
+//   images            -> <a href> to the source with alt text
+//   bullet/ordered    -> "• " / "N. " with nesting indentation
+//   blockquotes       -> "> " prefix
+//   horizontal rules  -> "———"
+//   tables            -> aligned monospace ASCII inside <pre>
 function mdToHtml(mdText) {
   if (typeof mdText !== "string") return "";
   const md = new MarkdownIt({ html: false, linkify: true });
@@ -92,8 +94,8 @@ function mdToHtml(mdText) {
   // Override renderer rules to emit Telegram-friendly HTML only.
   const r = md.renderer.rules;
 
-  r.paragraph_open = () => "";
-  r.paragraph_close = () => "\n\n";
+  r.paragraph_open = (tokens, idx) => (tokens[idx].hidden ? "" : "");
+  r.paragraph_close = (tokens, idx) => (tokens[idx].hidden ? "" : "\n\n");
   r.softbreak = () => "\n";
   r.hardbreak = () => "\n";
 
@@ -124,6 +126,59 @@ function mdToHtml(mdText) {
     return `<a href="${safe}">`;
   };
   r.link_close = () => `</a>`;
+
+  // Lists: bullets and ordered, with nesting-aware indentation.
+  const listStack = [];
+  r.bullet_list_open = () => {
+    listStack.push({ type: "bullet" });
+    return "";
+  };
+  r.bullet_list_close = () => {
+    listStack.pop();
+    return listStack.length ? "" : "\n";
+  };
+  r.ordered_list_open = (tokens, idx) => {
+    const start = Number(tokens[idx].attrGet && tokens[idx].attrGet("start")) || 1;
+    listStack.push({ type: "ordered", counter: start });
+    return "";
+  };
+  r.ordered_list_close = () => {
+    listStack.pop();
+    return listStack.length ? "" : "\n";
+  };
+  r.list_item_open = () => {
+    const depth = Math.max(0, listStack.length - 1);
+    const indent = "  ".repeat(depth);
+    const top = listStack[listStack.length - 1];
+    if (top && top.type === "ordered") {
+      const num = top.counter++;
+      return `\n${indent}${num}. `;
+    }
+    return `\n${indent}• `;
+  };
+  r.list_item_close = () => "";
+
+  // Blockquotes: prefix a "> " marker.
+  r.blockquote_open = () => "> ";
+  r.blockquote_close = () => "\n";
+
+  // Horizontal rule.
+  r.hr = () => "\n———\n\n";
+
+  // Strikethrough (GFM ~~text~~).
+  r.s_open = () => "<s>";
+  r.s_close = () => "</s>";
+  r.del_open = () => "<s>";
+  r.del_close = () => "</s>";
+
+  // Images: Telegram HTML can't embed, so link to the source with alt text.
+  r.image = (tokens, idx) => {
+    const src = tokens[idx].attrGet("src") || "";
+    const alt = md.utils.escapeHtml(tokens[idx].content || "image");
+    const safe = String(src).replace(/"/g, "'");
+    return safe ? `<a href="${safe}">${alt}</a>` : alt;
+  };
+
   // Render HTML then post-process tables into monospace ASCII inside <pre>
   let html = md.render(mdText).trim();
 
@@ -194,7 +249,91 @@ function mdToHtml(mdText) {
     return pre;
   });
 
+  // Normalize whitespace OUTSIDE <pre> blocks: collapse 3+ newlines to 2 and
+  // trim trailing spaces, while leaving preformatted content untouched.
+  html = html
+    .split(/(<pre>[\s\S]*?<\/pre>)/g)
+    .map((seg) =>
+      seg.startsWith("<pre>")
+        ? seg
+        : seg.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n"),
+    )
+    .join("")
+    .trim();
+
   return html;
+}
+
+// Split rendered HTML into <= max chunks WITHOUT cutting inside a tag or an
+// open element. We break on blank lines / newlines when possible, and close +
+// reopen <pre>/<code> spans so each chunk is independently valid HTML. Any
+// single line longer than max is hard-split on a tag boundary as a last resort.
+function splitHtml(html, max = TG_LIMIT) {
+  if (typeof html !== "string" || html.length <= max) {
+    return html ? [html] : [];
+  }
+
+  // Tokenize into tags and text runs so we never split inside a "<...>".
+  const tokens = html.match(/<[^>]+>|[^<]+/g) || [];
+  const chunks = [];
+  let cur = "";
+  const openStack = []; // currently-open formatting tags, e.g. ["pre","b"]
+
+  const tagName = (t) => {
+    const m = /^<\s*(\/?)\s*([a-zA-Z0-9]+)/.exec(t);
+    return m ? { closing: m[1] === "/", name: m[2].toLowerCase() } : null;
+  };
+  const openTagsHtml = () => openStack.map((n) => `<${n}>`).join("");
+  const closeTagsHtml = () =>
+    openStack.map((n) => `</${n}>`).reverse().join("");
+
+  const flush = () => {
+    if (!cur) return;
+    chunks.push(cur + closeTagsHtml());
+    cur = openTagsHtml();
+  };
+
+  // Max content length for `cur` before we must close open tags: reserve room
+  // for the closing tags so the emitted chunk stays within `max`.
+  const budget = () => max - closeTagsHtml().length;
+
+  for (let token of tokens) {
+    // If adding this token overflows the budget, flush or hard-split first.
+    while (cur.length + token.length > budget()) {
+      // If cur holds real content (beyond just reopened tags), flush it.
+      if (cur.length > openTagsHtml().length) {
+        flush();
+        continue;
+      }
+      // cur is only reopened tags (or empty) but the token still won't fit.
+      if (token.startsWith("<")) {
+        // A single tag longer than budget should never happen; emit as-is.
+        chunks.push(cur + token);
+        cur = openTagsHtml();
+        token = "";
+        break;
+      }
+      // Hard-split an over-long text run, preferring a space boundary.
+      const room = Math.max(1, budget() - cur.length);
+      const space = token.lastIndexOf(" ", room);
+      const cut = space > 0 ? space : room;
+      chunks.push(cur + token.slice(0, cut) + closeTagsHtml());
+      cur = openTagsHtml();
+      token = token.slice(cut);
+    }
+    if (!token) continue;
+    cur += token;
+    const info = tagName(token);
+    if (info) {
+      if (!info.closing) openStack.push(info.name);
+      else {
+        const i = openStack.lastIndexOf(info.name);
+        if (i !== -1) openStack.splice(i, 1);
+      }
+    }
+  }
+  if (cur && cur !== openTagsHtml()) chunks.push(cur);
+  return chunks;
 }
 
 // true = working, false = idle, null = unknown, from a session.status value.
@@ -412,17 +551,26 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
     const prefix =
       process.env.TELEGRAM_NOTIFY_PREFIX ||
       (process.env.TELEGRAM_USERNAME ? `@${process.env.TELEGRAM_USERNAME} ` : "");
-    const html = mdToHtml(truncate(text));
-    const payload = {
-      chat_id: groupId,
-      message_thread_id: tid,
-      text: prefix + html,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    };
-    // If TELEGRAM_DISABLE_NOTIFICATIONS is set to "1" then mark as silent.
-    if (process.env.TELEGRAM_DISABLE_NOTIFICATIONS === "1") payload.disable_notification = true;
-    await tg(token, "sendMessage", payload);
+    const silent = process.env.TELEGRAM_DISABLE_NOTIFICATIONS === "1";
+
+    // Render the full response, then split into HTML-valid chunks that each fit
+    // Telegram's limit (leaving room for the prefix on the first chunk).
+    const html = mdToHtml(text);
+    const chunks = splitHtml(html, TG_LIMIT - prefix.length);
+    if (!chunks.length) return;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const payload = {
+        chat_id: groupId,
+        message_thread_id: tid,
+        text: (i === 0 ? prefix : "") + chunks[i],
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        // Only the first chunk should ping; the rest arrive silently.
+        disable_notification: silent || i > 0,
+      };
+      await tg(token, "sendMessage", payload);
+    }
   }
 
   // ---- "typing…" indicator while the assistant is replying -----------------
