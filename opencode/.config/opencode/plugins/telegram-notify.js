@@ -1242,7 +1242,13 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
       await mkdir(INBOX_DIR, { recursive: true });
       await appendFile(
         path.join(INBOX_DIR, `${target.pid}.jsonl`),
-        JSON.stringify({ type: "text", update_id: update.update_id, text, ts: Date.now() }) + "\n",
+        JSON.stringify({
+          type: "text",
+          update_id: update.update_id,
+          text,
+          messageId: m.message_id,
+          ts: Date.now(),
+        }) + "\n",
       );
     } catch (err) {
       await log("warn", "inbox append failed", { error: String(err) });
@@ -1390,6 +1396,11 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
           (await apiReply(`/session/${currentSessionID}/abort`)) ||
           (await apiReply(`/session/${currentSessionID}/interrupt`));
         stopTyping();
+        // Drop any prompts still waiting on a button.
+        for (const entry of [...pendingByKey.values()]) {
+          clearPending(entry);
+          await editPrompt(entry, "⏹️ Cleared (session interrupted).").catch(() => {});
+        }
         await notify(ok ? "🛑 Interrupted." : "Couldn't interrupt.");
         return true;
       }
@@ -1414,9 +1425,19 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     }
   }
 
+  // React to a user's message so they get feedback it was received.
+  async function react(messageId, emoji = "👀") {
+    if (!messageId) return;
+    await tg(token, "setMessageReaction", {
+      chat_id: groupId,
+      message_id: messageId,
+      reaction: [{ type: "emoji", emoji }],
+    }).catch(() => {});
+  }
+
   // Route an incoming text message: slash command, custom answer to a pending
   // question, or a normal prompt.
-  async function handleIncomingText(text) {
+  async function handleIncomingText(text, messageId) {
     const trimmed = text.trim();
     if (trimmed.startsWith("/")) {
       const [cmd, ...restParts] = trimmed.split(/\s+/);
@@ -1428,9 +1449,11 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     const q = findPendingQuestion();
     if (q) {
       q.answers[q.qIndex] = [trimmed];
+      await react(messageId, "✍️");
       await advanceQuestion(q);
       return;
     }
+    await react(messageId, "👀");
     await injectPrompt(trimmed);
   }
 
@@ -1464,7 +1487,7 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
       if (msg.type === "callback") {
         await handleCallback(msg);
       } else if (typeof msg.text === "string" && msg.text) {
-        await handleIncomingText(msg.text);
+        await handleIncomingText(msg.text, msg.messageId);
       }
     }
   }
