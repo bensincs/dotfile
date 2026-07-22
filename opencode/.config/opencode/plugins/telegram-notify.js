@@ -124,8 +124,77 @@ function mdToHtml(mdText) {
     return `<a href="${safe}">`;
   };
   r.link_close = () => `</a>`;
+  // Render HTML then post-process tables into monospace ASCII inside <pre>
+  let html = md.render(mdText).trim();
 
-  return md.render(mdText).trim();
+  // Helper: decode basic HTML entities and numeric entities
+  function decodeEntities(s) {
+    if (!s) return "";
+    return s
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#(\d+);/g, (m, n) => String.fromCharCode(Number(n)));
+  }
+
+  // Convert each <table>...</table> to an ASCII table inside <pre>
+  html = html.replace(/<table[\s\S]*?<\/table>/gi, (tableHtml) => {
+    // extract rows
+    const rowMatches = Array.from(tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi));
+    if (!rowMatches.length) return tableHtml;
+    const rows = [];
+    const isHeaderRow = [];
+    for (const rm of rowMatches) {
+      const tr = rm[1];
+      const cells = Array.from(tr.matchAll(/<(t[dh])[^>]*>([\s\S]*?)<\/t[dh]>/gi));
+      if (!cells.length) continue;
+      const row = cells.map((c) => {
+        // strip inner tags and decode entities
+        const inner = c[2].replace(/<[^>]+>/g, "");
+        return decodeEntities(inner).trim();
+      });
+      rows.push(row);
+      // mark header if first cell tag was TH
+      isHeaderRow.push(/<th[\s\S]*?>/i.test(rm[0]));
+    }
+
+    if (!rows.length) return tableHtml;
+
+    // calculate column widths
+    const cols = Math.max(...rows.map((r) => r.length));
+    const widths = new Array(cols).fill(0);
+    for (const r of rows) {
+      for (let i = 0; i < cols; i++) {
+        const cell = String(r[i] ?? "");
+        widths[i] = Math.max(widths[i], cell.length);
+      }
+    }
+
+    // build ascii lines
+    const lines = [];
+    for (let ri = 0; ri < rows.length; ri++) {
+      const r = rows[ri];
+      const parts = [];
+      for (let ci = 0; ci < cols; ci++) {
+        const cell = String(r[ci] ?? "");
+        const pad = widths[ci] - cell.length;
+        parts.push(cell + " ".repeat(pad));
+      }
+      lines.push(`| ${parts.join(' | ')} |`);
+      // after first row, insert separator
+      if (ri === 0) {
+        const sep = widths.map((w) => "-".repeat(w));
+        lines.push(`| ${sep.join(' | ')} |`);
+      }
+    }
+
+    const pre = `<pre>${md.utils.escapeHtml(lines.join("\n"))}</pre>`;
+    return pre;
+  });
+
+  return html;
 }
 
 // true = working, false = idle, null = unknown, from a session.status value.
