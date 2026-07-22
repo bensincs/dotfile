@@ -55,7 +55,6 @@ import {
   writeFile,
   appendFile,
   unlink,
-  stat,
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -338,7 +337,14 @@ function splitHtml(html, max = TG_LIMIT) {
       // Hard-split an over-long text run, preferring a space boundary.
       const room = Math.max(1, budget() - cur.length);
       const space = token.lastIndexOf(" ", room);
-      const cut = space > 0 ? space : room;
+      let cut = space > 0 ? space : room;
+      // Don't slice through an HTML entity (e.g. &amp;): if an unterminated
+      // "&...;" straddles the cut, back up to before the "&".
+      const amp = token.lastIndexOf("&", cut - 1);
+      if (amp > 0) {
+        const semi = token.indexOf(";", amp);
+        if (semi === -1 || semi >= cut) cut = amp;
+      }
       chunks.push(cur + token.slice(0, cut) + closeTagsHtml());
       cur = openTagsHtml();
       token = token.slice(cut);
@@ -1310,8 +1316,11 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
   }
 
   // ---- Inbox consumer (runs in every window, drains its OWN inbox) ----------
-  let inboxReadBytes = 0;
+  // Offset is measured in JS string length (UTF-16 code units), matching the
+  // slicing in drainInbox — NOT bytes.
+  let inboxReadChars = 0;
   const seenUpdateIds = new Set();
+  const SEEN_MAX = 4000; // bound the dedup set so it can't grow forever
 
   async function injectPrompt(text) {
     let sid = currentSessionID;
@@ -1468,12 +1477,12 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
     } catch {
       return;
     }
-    if (content.length <= inboxReadBytes) {
-      inboxReadBytes = content.length; // file truncated/rotated
+    if (content.length <= inboxReadChars) {
+      inboxReadChars = content.length; // file truncated/rotated
       return;
     }
-    const fresh = content.slice(inboxReadBytes);
-    inboxReadBytes = content.length;
+    const fresh = content.slice(inboxReadChars);
+    inboxReadChars = content.length;
     for (const line of fresh.split("\n")) {
       const s = line.trim();
       if (!s) continue;
@@ -1486,6 +1495,12 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
       if (msg.update_id) {
         if (seenUpdateIds.has(msg.update_id)) continue;
         seenUpdateIds.add(msg.update_id);
+        // Bound the dedup set: drop the oldest entries once it gets large.
+        if (seenUpdateIds.size > SEEN_MAX) {
+          const drop = seenUpdateIds.size - Math.floor(SEEN_MAX / 2);
+          const it = seenUpdateIds.values();
+          for (let i = 0; i < drop; i++) seenUpdateIds.delete(it.next().value);
+        }
       }
       if (msg.type === "callback") {
         await handleCallback(msg);
@@ -1516,9 +1531,11 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
   ];
   if (incomingEnabled) {
     // Skip whatever is already in our inbox at startup; only handle new lines.
-    stat(ownInboxFile)
-      .then((s) => {
-        inboxReadBytes = s.size;
+    // Seed the offset in string length (UTF-16 units) to match drainInbox's
+    // slicing — reading the file rather than trusting the byte size.
+    readFile(ownInboxFile, "utf8")
+      .then((c) => {
+        inboxReadChars = c.length;
       })
       .catch(() => {});
     pollerTick().catch(() => {});
