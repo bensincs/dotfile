@@ -416,23 +416,28 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
   };
   const isChild = (sessionID) => !sessionID || childSessions.has(sessionID);
 
-  async function latestAssistantText(sessionID) {
+  // Return the last assistant message as { id, text }. `id` lets us dedupe so
+  // we never post the same turn twice (idle can fire more than once) and never
+  // silently skip a real turn.
+  async function latestAssistantMessage(sessionID) {
     try {
       const res = await client.session.messages({ path: { id: sessionID } });
       const rows = res?.data ?? [];
       for (let i = rows.length - 1; i >= 0; i--) {
-        if (rows[i]?.info?.role === "assistant") {
-          return (rows[i].parts ?? [])
+        const info = rows[i]?.info;
+        if (info?.role === "assistant") {
+          const text = (rows[i].parts ?? [])
             .filter((p) => p?.type === "text" && typeof p.text === "string")
             .map((p) => p.text)
             .join("")
             .trim();
+          return { id: info.id ?? null, text };
         }
       }
     } catch (err) {
       await log("error", "failed to read session messages", { error: String(err) });
     }
-    return "";
+    return { id: null, text: "" };
   }
 
   // ===========================================================================
@@ -610,11 +615,40 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
     );
   }
 
+  // Last assistant message id we posted, so repeated idle events for the same
+  // turn don't double-post and a genuinely new turn is never skipped.
+  let lastPostedMessageId = null;
+
   async function postResponse(sessionID) {
+    if (!sessionID) {
+      await log("warn", "postResponse skipped: no sessionID");
+      return;
+    }
     const tid = await ensureTopic();
-    if (!tid) return;
-    const text = await latestAssistantText(sessionID);
-    if (!text) return;
+    if (!tid) {
+      await log("warn", "postResponse skipped: no topic", { sessionID });
+      return;
+    }
+
+    // Read the final assistant message. `session.idle` can fire a beat before
+    // the last text part is flushed, so retry briefly on empty text.
+    let msg = await latestAssistantMessage(sessionID);
+    for (let attempt = 0; attempt < 3 && !msg.text; attempt++) {
+      await sleep(350);
+      msg = await latestAssistantMessage(sessionID);
+    }
+    if (!msg.text) {
+      await log("info", "postResponse: no assistant text to send", {
+        sessionID,
+        messageId: msg.id,
+      });
+      return;
+    }
+    // Dedupe: if we've already posted this exact assistant message, skip.
+    if (msg.id && msg.id === lastPostedMessageId) {
+      return;
+    }
+
     // Allow optional mention prefix to try to trigger notifications. If
     // TELEGRAM_NOTIFY_PREFIX is set (e.g. "@username" or "<a\n...>"), it
     // will be prepended to the message. Keep it configurable because some
@@ -628,9 +662,17 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
 
     // Render the full response, then split into HTML-valid chunks that each fit
     // Telegram's limit (leaving room for the prefix on the first chunk).
-    const html = mdToHtml(text);
+    const html = mdToHtml(msg.text);
     const chunks = splitHtml(html, TG_LIMIT - prefix.length);
     if (!chunks.length) return;
+
+    lastPostedMessageId = msg.id;
+    await log("info", "posting response", {
+      sessionID,
+      messageId: msg.id,
+      chars: msg.text.length,
+      chunks: chunks.length,
+    });
 
     // Enqueue every chunk; the queue serializes, paces, and retries them so
     // none are dropped to rate limiting.
@@ -982,8 +1024,12 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
             break;
           }
           case "session.idle": {
-            const sessionID = props.sessionID ?? info?.sessionID;
-            if (isChild(sessionID)) break;
+            // Idle events don't always carry a sessionID; fall back to the
+            // active session so we don't silently skip the post. (isChild(undefined)
+            // is true, which previously dropped these turns entirely.)
+            const sessionID =
+              props.sessionID ?? info?.sessionID ?? currentSessionID;
+            if (!sessionID || isChild(sessionID)) break;
             stopTyping();
             await onActiveSession(sessionID);
             await postResponse(sessionID);
