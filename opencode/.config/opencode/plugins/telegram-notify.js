@@ -9,11 +9,13 @@
 // current session as a new prompt. DMs to the bot and the group's General topic
 // are ignored.
 //
-// PERMISSIONS: when opencode asks whether it may do something, an inline-keyboard
-// prompt (Allow once / Allow always / Reject) is posted into the window's topic.
-// Tapping a button answers the permission via the opencode API. This requires
-// incoming to be enabled (the poller routes the button tap). If incoming is
-// disabled the prompt is still shown, but must be answered in the terminal.
+// PERMISSIONS & QUESTIONS: when opencode asks whether it may do something
+// (permission.asked) or asks you to pick an option (question.asked), an
+// inline-keyboard prompt is posted into the window's topic. Tapping a button
+// answers it via the opencode client (permission.reply / question.reply /
+// question.reject). This requires incoming to be enabled (the poller routes the
+// button tap). If incoming is disabled the prompt is shown as text to answer in
+// the terminal.
 //
 //   A Telegram bot has ONE incoming stream (getUpdates is single-consumer and
 //   can't be filtered per-topic), so we can't let every window poll. Instead one
@@ -79,6 +81,15 @@ const LOCK_FILE = path.join(ROOT, "poller.lock");
 const OFFSET_FILE = path.join(ROOT, "offset.json");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Escape a plain string for safe inclusion in Telegram HTML.
+function escHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 // Render Markdown to an HTML subset compatible with Telegram's HTML parse_mode.
 // markdown-it does the parsing; custom renderer rules map every construct onto
@@ -696,40 +707,74 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
   }
 
   // ===========================================================================
-  // Interactive permission prompts: post Allow/Reject buttons to Telegram and
-  // resolve them via the opencode permission API when a button is tapped.
+  // Interactive prompts: permission requests (permission.asked) and questions
+  // (question.asked). Both are surfaced as inline-keyboard messages in the
+  // window's topic and resolved via the opencode client when a button is
+  // tapped. Button taps route back here through the poller -> inbox pipeline.
+  //
+  //   Permission API: client.permission.reply({ requestID, reply })
+  //                   reply in "once" | "always" | "reject"
+  //   Question API:   client.question.reply({ requestID, answers })
+  //                   answers = [[label,...] per question, in order]
+  //                   client.question.reject({ requestID })
+  //
+  // callback_data is capped at 64 bytes, so prompts are keyed by a short counter
+  // and options are referenced by index rather than embedding ids/labels.
   // ===========================================================================
-  // callback_data is capped at 64 bytes, so we key prompts by a short counter
-  // rather than embedding the (longer) permission id. The map lives in the
-  // window that owns the permission; button taps are routed back here via the
-  // poller -> inbox pipeline (same path as incoming text).
   let cbKeyCounter = 0;
-  const pendingByKey = new Map(); // cbKey -> { permissionID, sessionID, messageId }
-  const pendingByPermissionId = new Map(); // permissionID -> cbKey
+  const pendingByKey = new Map(); // cbKey -> entry (see below)
+  const pendingByRequestId = new Map(); // requestID -> cbKey
 
-  const RESP_LABEL = {
+  const PERM_LABEL = {
     once: "✅ Allow once",
     always: "✅ Allow always",
     reject: "⛔ Reject",
   };
 
+  const ack = (rec, text) =>
+    tg(token, "answerCallbackQuery", {
+      callback_query_id: rec.callbackId,
+      text: text || "",
+    });
+
+  async function editPrompt(entry, html, keyboard) {
+    if (!entry?.messageId) return;
+    const params = {
+      chat_id: groupId,
+      message_id: entry.messageId,
+      text: html,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+    };
+    if (keyboard) params.reply_markup = { inline_keyboard: keyboard };
+    await tg(token, "editMessageText", params);
+  }
+
+  function clearPending(entry) {
+    if (!entry) return;
+    pendingByKey.delete(entry.key);
+    if (entry.requestID) pendingByRequestId.delete(entry.requestID);
+  }
+
+  // ---- Permissions ----------------------------------------------------------
   async function postPermissionPrompt(permission) {
     // Prompt for ALL sessions (incl. subagents): an unanswered permission
-    // blocks the run, so we must surface it even for child sessions.
+    // blocks the run, so surface it even for child sessions.
     if (!permission?.id) return;
-    if (pendingByPermissionId.has(permission.id)) return; // already prompted
+    if (pendingByRequestId.has(permission.id)) return; // already prompted
     const tid = await ensureTopic();
     if (!tid) return;
 
     const key = `p${++cbKeyCounter}`;
-    const title = permission.title || permission.type || "Permission requested";
+    const name = permission.permission || permission.type || "action";
     const patterns = []
-      .concat(permission.pattern || [])
+      .concat(permission.patterns || permission.pattern || [])
       .filter(Boolean)
-      .slice(0, 6);
-    let body = `🔐 <b>Permission requested</b>\n${mdToHtml(String(title))}`;
+      .slice(0, 8)
+      .map(String);
+    let body = `🔐 <b>Permission requested</b>\n${mdToHtml(String(name))}`;
     if (patterns.length) {
-      body += `\n<pre>${patterns.map((p) => String(p)).join("\n")}</pre>`;
+      body += `\n<pre>${patterns.map((p) => escHtml(p)).join("\n")}</pre>`;
     }
 
     const payload = {
@@ -743,29 +788,28 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
       payload.reply_markup = {
         inline_keyboard: [
           [
-            { text: RESP_LABEL.once, callback_data: `pm:${key}:once` },
-            { text: RESP_LABEL.always, callback_data: `pm:${key}:always` },
+            { text: PERM_LABEL.once, callback_data: `pm:${key}:once` },
+            { text: PERM_LABEL.always, callback_data: `pm:${key}:always` },
           ],
-          [{ text: RESP_LABEL.reject, callback_data: `pm:${key}:reject` }],
+          [{ text: PERM_LABEL.reject, callback_data: `pm:${key}:reject` }],
         ],
       };
     } else {
-      body += `\n<i>(answer in the terminal; Telegram incoming is disabled)</i>`;
-      payload.text = body;
+      payload.text = body + `\n<i>(answer in the terminal; incoming disabled)</i>`;
     }
 
     const r = await tg(token, "sendMessage", payload);
     if (r?.ok && r.result?.message_id) {
-      pendingByKey.set(key, {
-        permissionID: permission.id,
+      const entry = {
+        kind: "permission",
+        key,
+        requestID: permission.id,
         sessionID: permission.sessionID,
         messageId: r.result.message_id,
-      });
-      pendingByPermissionId.set(permission.id, key);
-      await log("info", "posted permission prompt", {
-        permissionID: permission.id,
-        sessionID: permission.sessionID,
-      });
+      };
+      pendingByKey.set(key, entry);
+      pendingByRequestId.set(permission.id, key);
+      await log("info", "posted permission prompt", { requestID: permission.id });
     } else {
       await log("warn", "failed to post permission prompt", {
         description: r?.description,
@@ -773,66 +817,227 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
     }
   }
 
-  // Edit the prompt message to show the outcome and drop the buttons.
-  async function finalizePermissionMessage(entry, decisionText) {
-    if (!entry?.messageId) return;
-    await tg(token, "editMessageText", {
-      chat_id: groupId,
-      message_id: entry.messageId,
-      text: `🔐 <b>Permission</b> — ${decisionText}`,
-      parse_mode: "HTML",
+  async function resolvePermission(entry, rec, reply) {
+    try {
+      await client.permission.reply({ requestID: entry.requestID, reply });
+      await log("info", "permission answered from Telegram", {
+        requestID: entry.requestID,
+        reply,
+      });
+    } catch (err) {
+      await log("error", "failed to reply to permission", {
+        error: String(err),
+        requestID: entry.requestID,
+      });
+      await ack(rec, "Failed — try the terminal.");
+      return;
+    }
+    clearPending(entry);
+    await ack(rec, (PERM_LABEL[reply] || reply).replace(/^\S+\s/, ""));
+    await editPrompt(entry, `🔐 <b>Permission</b> — ${PERM_LABEL[reply] || reply}`);
+  }
+
+  // ---- Questions ------------------------------------------------------------
+  async function postQuestionPrompt(request) {
+    if (!request?.id || !Array.isArray(request.questions) || !request.questions.length)
+      return;
+    if (pendingByRequestId.has(request.id)) return;
+    const tid = await ensureTopic();
+    if (!tid) return;
+
+    const key = `q${++cbKeyCounter}`;
+    const entry = {
+      kind: "question",
+      key,
+      requestID: request.id,
+      sessionID: request.sessionID,
+      questions: request.questions,
+      qIndex: 0,
+      answers: [], // answers[i] = [labels]
+      selected: new Set(), // current question multi-select state
+      messageId: null,
+    };
+    pendingByKey.set(key, entry);
+    pendingByRequestId.set(request.id, key);
+    await renderQuestion(entry, tid);
+    await log("info", "posted question prompt", {
+      requestID: request.id,
+      questions: request.questions.length,
     });
   }
 
-  // A button was tapped (routed to us via the inbox). Respond to opencode.
-  async function handlePermissionCallback(rec) {
-    const [, key, response] = String(rec.data || "").split(":");
-    // Always answer the callback so Telegram stops showing the spinner.
-    const ack = (text) =>
-      tg(token, "answerCallbackQuery", { callback_query_id: rec.callbackId, text });
-
-    const entry = key && pendingByKey.get(key);
-    if (!entry || !["once", "always", "reject"].includes(response)) {
-      await ack("This prompt is no longer active.");
-      return;
-    }
-
-    try {
-      await client.postSessionIdPermissionsPermissionId({
-        path: { id: entry.sessionID, permissionID: entry.permissionID },
-        body: { response },
-      });
-      await log("info", "permission answered from Telegram", {
-        permissionID: entry.permissionID,
-        response,
-      });
-    } catch (err) {
-      await log("error", "failed to respond to permission", {
-        error: String(err),
-        permissionID: entry.permissionID,
-      });
-      await ack("Failed to apply — try the terminal.");
-      return;
-    }
-
-    pendingByKey.delete(key);
-    pendingByPermissionId.delete(entry.permissionID);
-    await ack(RESP_LABEL[response]?.replace(/^[^ ]+ /, "") || "Done");
-    await finalizePermissionMessage(entry, RESP_LABEL[response] || response);
+  function questionBodyHtml(entry) {
+    const q = entry.questions[entry.qIndex];
+    const n = entry.questions.length;
+    const counter = n > 1 ? ` (${entry.qIndex + 1}/${n})` : "";
+    let body = `❓ <b>${escHtml(q.header || "Question")}${counter}</b>\n${mdToHtml(
+      String(q.question || ""),
+    )}`;
+    if (q.multiple) body += `\n<i>Select any, then Submit.</i>`;
+    return body;
   }
 
-  // The permission was answered somewhere else (e.g. the TUI). Clear our prompt.
-  async function clearPermissionOnReplied(permissionID, response) {
-    const key = pendingByPermissionId.get(permissionID);
+  function questionKeyboard(entry) {
+    const q = entry.questions[entry.qIndex];
+    const opts = Array.isArray(q.options) ? q.options : [];
+    const rows = opts.map((o, i) => {
+      const chosen = q.multiple && entry.selected.has(i);
+      const label = String(o?.label ?? `Option ${i + 1}`).slice(0, 48);
+      return [
+        {
+          text: (chosen ? "☑️ " : "") + label,
+          callback_data: `${q.multiple ? "qt" : "qa"}:${entry.key}:${i}`,
+        },
+      ];
+    });
+    const controls = [];
+    if (q.multiple)
+      controls.push({ text: "✅ Submit", callback_data: `qs:${entry.key}` });
+    controls.push({ text: "✖️ Cancel", callback_data: `qx:${entry.key}` });
+    rows.push(controls);
+    return rows;
+  }
+
+  async function renderQuestion(entry, tid) {
+    const body = questionBodyHtml(entry);
+    if (!incomingEnabled) {
+      // No poller to route taps: post as plain text listing the options.
+      const q = entry.questions[entry.qIndex];
+      const list = (q.options || [])
+        .map((o, i) => `${i + 1}. ${escHtml(String(o?.label ?? ""))}`)
+        .join("\n");
+      await tg(token, "sendMessage", {
+        chat_id: groupId,
+        message_thread_id: tid,
+        text: `${body}\n<pre>${list}</pre>\n<i>(answer in the terminal; incoming disabled)</i>`,
+        parse_mode: "HTML",
+      });
+      return;
+    }
+    const keyboard = questionKeyboard(entry);
+    if (entry.messageId) {
+      await editPrompt(entry, body, keyboard);
+      return;
+    }
+    const r = await tg(token, "sendMessage", {
+      chat_id: groupId,
+      message_thread_id: tid,
+      text: body,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      reply_markup: { inline_keyboard: keyboard },
+    });
+    if (r?.ok && r.result?.message_id) entry.messageId = r.result.message_id;
+  }
+
+  async function advanceQuestion(entry) {
+    entry.qIndex += 1;
+    entry.selected = new Set();
+    if (entry.qIndex < entry.questions.length) {
+      entry.messageId = null; // post a fresh message for the next question
+      const tid = await ensureTopic();
+      await renderQuestion(entry, tid);
+      return;
+    }
+    // All questions answered -> reply.
+    try {
+      await client.question.reply({ requestID: entry.requestID, answers: entry.answers });
+      await log("info", "question answered from Telegram", {
+        requestID: entry.requestID,
+        answers: entry.answers,
+      });
+    } catch (err) {
+      await log("error", "failed to reply to question", {
+        error: String(err),
+        requestID: entry.requestID,
+      });
+    }
+    clearPending(entry);
+    const summary = entry.answers.map((a) => a.join(", ")).join(" | ");
+    await editPrompt(entry, `❓ <b>Answered</b> — ${escHtml(summary)}`);
+  }
+
+  async function handleQuestionCallback(entry, rec, action, idx) {
+    const q = entry.questions[entry.qIndex];
+    const opts = Array.isArray(q.options) ? q.options : [];
+
+    if (action === "qx") {
+      try {
+        await client.question.reject({ requestID: entry.requestID });
+      } catch (err) {
+        await log("error", "failed to reject question", { error: String(err) });
+      }
+      clearPending(entry);
+      await ack(rec, "Cancelled");
+      await editPrompt(entry, `❓ <b>Question</b> — ✖️ cancelled`);
+      return;
+    }
+
+    if (action === "qa") {
+      // single-select: record and advance
+      const label = String(opts[idx]?.label ?? "");
+      entry.answers[entry.qIndex] = [label];
+      await ack(rec, label);
+      await advanceQuestion(entry);
+      return;
+    }
+
+    if (action === "qt") {
+      // multi-select toggle
+      if (entry.selected.has(idx)) entry.selected.delete(idx);
+      else entry.selected.add(idx);
+      await ack(rec);
+      await renderQuestion(entry); // re-render to show ☑️
+      return;
+    }
+
+    if (action === "qs") {
+      const labels = [...entry.selected].sort((a, b) => a - b).map((i) =>
+        String(opts[i]?.label ?? ""),
+      );
+      if (!labels.length) {
+        await ack(rec, "Select at least one.");
+        return;
+      }
+      entry.answers[entry.qIndex] = labels;
+      await ack(rec, labels.join(", "));
+      await advanceQuestion(entry);
+      return;
+    }
+  }
+
+  // ---- Callback dispatch (invoked from the inbox consumer) ------------------
+  async function handleCallback(rec) {
+    const parts = String(rec.data || "").split(":");
+    const action = parts[0]; // pm | qa | qt | qs | qx
+    const key = parts[1];
+    const arg = parts[2];
+    const entry = key && pendingByKey.get(key);
+    if (!entry) {
+      await ack(rec, "This prompt is no longer active.");
+      return;
+    }
+    if (action === "pm") {
+      if (!["once", "always", "reject"].includes(arg)) return ack(rec);
+      await resolvePermission(entry, rec, arg);
+      return;
+    }
+    if (["qa", "qt", "qs", "qx"].includes(action)) {
+      await handleQuestionCallback(entry, rec, action, Number(arg));
+      return;
+    }
+    await ack(rec);
+  }
+
+  // A prompt was resolved elsewhere (e.g. the terminal). Clear our message.
+  async function clearOnResolved(requestID, note) {
+    const key = pendingByRequestId.get(requestID);
     if (!key) return;
     const entry = pendingByKey.get(key);
-    pendingByKey.delete(key);
-    pendingByPermissionId.delete(permissionID);
+    clearPending(entry);
     if (entry) {
-      await finalizePermissionMessage(
-        entry,
-        RESP_LABEL[response] || `answered (${response || "elsewhere"})`,
-      );
+      const icon = entry.kind === "permission" ? "🔐" : "❓";
+      await editPrompt(entry, `${icon} <b>Answered</b> — ${escHtml(note || "elsewhere")}`);
     }
   }
 
@@ -1122,7 +1327,7 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
         seenUpdateIds.add(msg.update_id);
       }
       if (msg.type === "callback") {
-        await handlePermissionCallback(msg);
+        await handleCallback(msg);
       } else if (typeof msg.text === "string" && msg.text) {
         await injectPrompt(msg.text);
       }
@@ -1215,17 +1420,31 @@ export const TelegramNotifyPlugin = async ({ client, directory }) => {
           case "session.error":
             stopTyping();
             break;
-          case "permission.updated": {
+          case "permission.asked": {
             // opencode is asking whether it may do something -> post buttons.
-            const perm = info ?? props;
-            if (perm?.id) await postPermissionPrompt(perm);
+            if (props?.id) await postPermissionPrompt(props);
             break;
           }
           case "permission.replied": {
             // Answered from the TUI or another client -> clear our prompt.
-            const permissionID = props.permissionID ?? info?.permissionID;
-            if (permissionID)
-              await clearPermissionOnReplied(permissionID, props.response);
+            const requestID = props.requestID ?? props.id;
+            if (requestID)
+              await clearOnResolved(requestID, PERM_LABEL[props.reply] || props.reply);
+            break;
+          }
+          case "question.asked": {
+            // opencode is asking you to pick an option -> post choice buttons.
+            if (props?.id) await postQuestionPrompt(props);
+            break;
+          }
+          case "question.replied":
+          case "question.rejected": {
+            const requestID = props.requestID ?? props.id;
+            if (requestID)
+              await clearOnResolved(
+                requestID,
+                type === "question.rejected" ? "cancelled" : "answered",
+              );
             break;
           }
         }
