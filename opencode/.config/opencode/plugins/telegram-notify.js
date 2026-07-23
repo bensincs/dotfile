@@ -1729,8 +1729,10 @@ export const TelegramNotifyPlugin = async ({ client, directory, serverUrl }) => 
   async function handleIncomingText(text, messageId) {
     const trimmed = text.trim();
     if (trimmed.startsWith("/")) {
-      const [cmd, ...restParts] = trimmed.split(/\s+/);
-      await handleCommand(cmd.toLowerCase(), restParts.join(" "));
+      const [rawCmd, ...restParts] = trimmed.split(/\s+/);
+      // In groups Telegram appends @BotName to commands (e.g. /help@BensBot).
+      const cmd = rawCmd.toLowerCase().replace(/@[a-z0-9_]+$/, "");
+      await handleCommand(cmd, restParts.join(" "));
       return;
     }
     // If a question is awaiting input, treat typed text as the answer to the
