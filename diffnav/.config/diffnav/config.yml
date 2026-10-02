@@ -1,0 +1,12 @@
+# Compact layout for herdr panes; icons match Kitty's Nerd Font.
+ui:
+  hideHeader: true
+  hideFooter: true
+  showFileTree: true
+  fileTreeWidth: 30
+  icons: nerd-fonts-status
+  colorFileNames: true
+  showDiffStats: true
+  sideBySide: false
+  # Used by diffnav releases with theme selection; older releases use Delta.
+  theme: builtin_solarized_dark

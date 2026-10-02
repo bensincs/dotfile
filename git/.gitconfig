@@ -30,6 +30,20 @@
 	excludesfile = ~/.gitignore_global
 [alias]
 	ai = !opencode run /commit
+# Match Kitty's Solarized Dark palette in Git diffs and diffnav.
+[delta]
+	dark = true
+	syntax-theme = Solarized (dark)
+	minus-style = syntax "#3b252c"
+	minus-emph-style = syntax "#663033"
+	plus-style = syntax "#183c32"
+	plus-emph-style = syntax "#305039"
+	line-numbers = true
+	line-numbers-minus-style = "#dc322f"
+	line-numbers-plus-style = "#859900"
+	line-numbers-zero-style = "#586e75"
+	hunk-header-style = file line-number syntax
+	hunk-header-decoration-style = "#268bd2" box
 [credential "azrepos:org/incep-cortex"]
 	azureAuthority = https://login.microsoftonline.com/5ac4936b-1ac4-4e57-9e2b-48673491865e
 	username = bensinclair@microsoft.com

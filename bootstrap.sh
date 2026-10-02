@@ -48,6 +48,7 @@ echo "▶ Stowing dotfiles..."
 cd "$DOTFILES_DIR"
 
 STOW_PACKAGES=(
+  diffnav
   git
   starship
   zsh
