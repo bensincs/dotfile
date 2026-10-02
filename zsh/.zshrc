@@ -72,7 +72,7 @@ fi
 alias gs="git status"
 alias gp="git pull"
 
-# Watch changes from the current working-tree state, across commits and pushes.
+# Watch changes from the commit at launch, across later commits and pushes.
 diffwatch() {
   bash "$HOME/.config/zsh/diffwatch.sh" "$@"
 }
