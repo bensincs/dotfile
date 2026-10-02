@@ -17,7 +17,13 @@ if ! command -v diffnav >/dev/null 2>&1; then
 fi
 
 repo_root=$(git rev-parse --show-toplevel)
-DIFFWATCH_BASELINE=$(git rev-parse --verify 'HEAD^{tree}')
+# aicode pins the commit before starting either pane; standalone uses HEAD.
+baseline=HEAD
+if [[ "${1:-}" == "--baseline" ]]; then
+  baseline=${2:?--baseline requires a commit}
+  shift 2
+fi
+DIFFWATCH_BASELINE=$(git rev-parse --verify "${baseline}^{tree}")
 export DIFFWATCH_BASELINE
 objects_path=$(git rev-parse --path-format=absolute --git-path objects)
 export DIFFWATCH_SCRIPT="${BASH_SOURCE[0]}"
@@ -40,6 +46,12 @@ export GIT_ALTERNATE_OBJECT_DIRECTORIES="\"$objects_path\"${GIT_ALTERNATE_OBJECT
 
 git read-tree "$DIFFWATCH_BASELINE"
 git add --all -- .
+
+# Label only this pane when launched inside herdr; renaming is best-effort.
+if [[ "${HERDR_ENV:-}" == "1" && -n "${HERDR_PANE_ID:-}" ]] && \
+  command -v herdr >/dev/null 2>&1; then
+  herdr pane rename "$HERDR_PANE_ID" "diffwatch · ${repo_root##*/}" >/dev/null 2>&1 || true
+fi
 
 # The watch shell expands this variable on each refresh.
 # shellcheck disable=SC2016

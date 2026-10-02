@@ -77,6 +77,11 @@ diffwatch() {
   bash "$HOME/.config/zsh/diffwatch.sh" "$@"
 }
 
+# Open a side-by-side OpenCode and diffwatch tab in herdr.
+aicode() {
+  bash "$HOME/.config/zsh/aicode.sh" "$@"
+}
+
 # tmux - attach/switch to session defined by TMUX_SESSION env var (set via direnv) or default to 'main'
 tm() {
   local session="${TMUX_SESSION:-main}"
