@@ -77,7 +77,7 @@ diffwatch() {
   bash "$HOME/.config/zsh/diffwatch.sh" "$@"
 }
 
-# Open a side-by-side OpenCode and diffwatch tab in herdr.
+# Open OpenCode and diffwatch above a full-width system monitor in herdr.
 aicode() {
   bash "$HOME/.config/zsh/aicode.sh" "$@"
 }

@@ -1,0 +1,11 @@
+# A single row of graphs for a short herdr monitor pane.
+[flags]
+default_cpu_entry = "avg"
+
+[[row]]
+  [[row.child]]
+  type = "cpu"
+  [[row.child]]
+  type = "mem"
+  [[row.child]]
+  type = "net"

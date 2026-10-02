@@ -6,7 +6,7 @@ if [[ "${HERDR_ENV:-}" != "1" || -z "${HERDR_PANE_ID:-}" ]]; then
   exit 1
 fi
 
-for tool in git herdr jq opencode diffnav; do
+for tool in git herdr jq opencode diffnav btm; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "aicode requires $tool." >&2
     exit 1
@@ -25,6 +25,11 @@ if [[ ! -f "$helper" ]]; then
   echo "Missing diffwatch.sh; stow the zsh package first." >&2
   exit 1
 fi
+monitor_config="$HOME/.config/bottom/graphs.toml"
+if [[ ! -f "$monitor_config" ]]; then
+  echo "Missing graphs.toml; stow the bottom package first." >&2
+  exit 1
+fi
 
 # Explicitly target the invoking pane's workspace, not whichever tab has focus.
 workspace=$(herdr pane current --pane "$HERDR_PANE_ID" | jq -er '.result.pane.workspace_id')
@@ -32,15 +37,21 @@ tab=$(herdr tab create --workspace "$workspace" --cwd "$repo_root" \
   --label "${repo_root##*/} · $branch" --no-focus)
 tab_id=$(jq -er '.result.tab.tab_id' <<< "$tab")
 agent_pane=$(jq -er '.result.root_pane.pane_id' <<< "$tab")
+# Split off a full-width monitor first, then divide the top row equally.
+monitor_pane=$(herdr pane split "$agent_pane" --direction down --ratio 0.875 \
+  --cwd "$repo_root" --no-focus | jq -er '.result.pane.pane_id')
 diff_pane=$(herdr pane split "$agent_pane" --direction right --ratio 0.5 \
   --cwd "$repo_root" --no-focus | jq -er '.result.pane.pane_id')
 
 herdr pane rename "$agent_pane" "OpenCode · ${repo_root##*/}" >/dev/null
 herdr pane rename "$diff_pane" "Diff · $branch" >/dev/null
+herdr pane rename "$monitor_pane" "System monitor" >/dev/null
 
 # Quote each argument for the receiving shell, including paths and user input.
 printf -v diff_command '%q ' bash "$helper" --baseline "$baseline"
 printf -v agent_command '%q ' opencode "$@"
+printf -v monitor_command '%q ' btm --config_location "$monitor_config"
 herdr pane run "$diff_pane" "$diff_command"
+herdr pane run "$monitor_pane" "$monitor_command"
 herdr pane run "$agent_pane" "$agent_command"
 herdr tab focus "$tab_id" >/dev/null
