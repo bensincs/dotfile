@@ -3,3 +3,6 @@
 
 # Environment files
 .envrc
+
+# Local machine env / secrets (never committed)
+.zshenv.local

@@ -30,3 +30,9 @@ fi
 if command -v fnm >/dev/null 2>&1; then
   eval "$(fnm env)"
 fi
+
+# ---- Local machine overrides & secrets (NOT committed) ----
+# Machine-specific env vars and secrets (API tokens, etc.) live in
+# ~/.zshenv.local, which sits outside this repo and is gitignored, so it is
+# never committed. Sourced last so it can override anything above.
+[[ -f "$HOME/.zshenv.local" ]] && source "$HOME/.zshenv.local"
