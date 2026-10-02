@@ -1,9 +1,13 @@
 ---
 name: herdr
-description: "Control herdr from inside it. Manage workspaces and tabs, split panes, spawn agents, read output, and wait for state changes — all via CLI commands that talk to the running herdr instance over a local unix socket. Use when running inside herdr (HERDR_ENV=1)."
+description: "Control herdr workspaces, tabs, panes, and agents via CLI. Use ONLY when the user explicitly asks for herdr control and HERDR_ENV=1; running inside herdr alone does not trigger this skill."
 ---
 
 # herdr — agent skill
+
+herdr is opt-in. only perform herdr actions explicitly requested by the user.
+use OpenCode's normal tools for tasks by default; do not automatically create
+panes or spawn agents for tests, builds, or long-running processes.
 
 before using this skill, check that `HERDR_ENV=1`. if it is not set to `1`, say you are not running inside a herdr-managed pane and stop. do not inspect or control the focused herdr pane from outside herdr.
 
