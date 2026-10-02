@@ -72,6 +72,11 @@ fi
 alias gs="git status"
 alias gp="git pull"
 
+# Watch changes from the current working-tree state, across commits and pushes.
+diffwatch() {
+  bash "$HOME/.config/zsh/diffwatch.sh" "$@"
+}
+
 # tmux - attach/switch to session defined by TMUX_SESSION env var (set via direnv) or default to 'main'
 tm() {
   local session="${TMUX_SESSION:-main}"

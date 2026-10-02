@@ -6,6 +6,10 @@ brew "gh"
 brew "wget"
 brew "mkcert"
 
+# --- Git review ---
+brew "diffnav" # Live diff viewer with a file tree
+brew "lazygit"
+
 # --- Shell / UX ---
 brew "starship"
 brew "stow"
