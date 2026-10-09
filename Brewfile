@@ -64,6 +64,9 @@ brew "tmux"
 # --- Agent multiplexer ---
 brew "herdr"
 
+# --- Pi Coding Agent ---
+brew "pi-coding-agent"
+
 # --- Synergy ---
 brew "gettext"
 brew "nss"
