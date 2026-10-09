@@ -51,6 +51,7 @@ STOW_PACKAGES=(
   bottom
   diffnav
   git
+  pi
   starship
   zsh
   tmux
