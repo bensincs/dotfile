@@ -1,9 +1,9 @@
 {
   "lastChangelogVersion": "1.1.0",
   "defaultProvider": "github-copilot",
-  "defaultModel": "gpt-5.4",
+  "defaultModel": "claude-opus-5.5",
   "defaultTools": ["+codemode"],
   "theme": "system",
-  "defaultThinkingLevel": "medium",
+  "defaultThinkingLevel": "high",
   "quietStartup": "header"
 }

@@ -1,0 +1,24 @@
+{
+  "0": {
+    "provider": "github-copilot",
+    "model": "claude-opus-5.5",
+    "thinkingLevel": "max"
+  },
+  "1": {
+    "provider": "github-copilot",
+    "model": "claude-sonnet-5.5",
+    "thinkingLevel": "low"
+  },
+  "2": null,
+  "3": null,
+  "4": null,
+  "5": null,
+  "6": null,
+  "7": null,
+  "8": null,
+  "9": {
+    "provider": "github-copilot",
+    "model": "gpt-6-astra",
+    "thinkingLevel": "max"
+  }
+}

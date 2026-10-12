@@ -51,6 +51,7 @@ STOW_PACKAGES=(
   bottom
   diffnav
   git
+  kitty
   pi
   starship
   zsh

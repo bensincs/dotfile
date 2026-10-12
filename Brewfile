@@ -48,6 +48,7 @@ brew "azure/kubelogin/kubelogin"
 # --- Cloud / IaC ---
 tap "azure/functions"
 brew "azure-cli"
+brew "cloudflare-wrangler"
 tap "hashicorp/tap"
 brew "hashicorp/tap/terraform"
 
