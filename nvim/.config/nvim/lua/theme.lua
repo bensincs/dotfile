@@ -26,3 +26,9 @@ hl("markdownH2", { ctermfg = 4, cterm = { bold = true } })
 hl("markdownH3", { ctermfg = 4, cterm = { bold = true } })
 hl("markdownCode", { ctermfg = 2 })
 hl("markdownListMarker", { ctermfg = 3 })
+
+-- File tree (nvim-tree links its folder names to Directory).
+hl("Directory", { ctermfg = 4 })
+hl("NvimTreeRootFolder", { ctermfg = 3, cterm = { bold = true } })
+hl("NvimTreeIndentMarker", { ctermfg = 8 })
+hl("CursorLine", { cterm = { bold = true } })

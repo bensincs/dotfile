@@ -71,4 +71,15 @@ for pkg in "${STOW_PACKAGES[@]}"; do
   fi
 done
 
+# ----------------------------
+# 5. Neovim plugins
+# ----------------------------
+# Installs the versions pinned in nvim/.config/nvim/lazy-lock.json.
+if command -v nvim >/dev/null 2>&1; then
+  echo "▶ Installing Neovim plugins..."
+  nvim --headless "+Lazy! restore" +qa
+else
+  echo "⚠ nvim not found, skipping plugins"
+fi
+
 echo "✅ Bootstrap complete"

@@ -13,8 +13,13 @@ o.wrap = true
 o.linebreak = true
 
 -- ---- Header ----
--- A bar above the text; it is not part of the file.
-o.winbar = " Notes"
+-- A bar above the text; it is not part of the file. Set for this window only,
+-- and cleared in the file tree, which would otherwise inherit it from a split.
+vim.wo.winbar = " Notes"
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "NvimTree",
+  callback = function() vim.wo.winbar = "" end,
+})
 vim.api.nvim_set_hl(0, "WinBar", { ctermfg = 4, cterm = { bold = true } })
 vim.api.nvim_set_hl(0, "WinBarNC", { ctermfg = 8, cterm = { bold = true } })
 

@@ -115,6 +115,12 @@ alias k="kubectl"
 alias code="code-insiders"
 alias c="clear"
 
+# neovim
+if command -v nvim >/dev/null 2>&1; then
+  alias vim="nvim"
+  alias vi="nvim"
+fi
+
 # go function - runs opencode with terminal-executor agent (continues last session)
 oc() {
   opencode run --continue --model github-copilot/claude-sonnet-4.5 --agent terminal-executor "$*"
