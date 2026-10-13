@@ -97,12 +97,12 @@ tm() {
   fi
 }
 
-# n - open the live-synced notes pad. Works in any number of terminals or
-# herdr panes; edits autosave and appear everywhere as you type.
+# n - live-synced notes pad. Works in any number of terminals or herdr panes.
+#   n              open the pad
+#   n some text    append a line without opening it
+#   cmd | n        append piped output
 n() {
-  local file="${NOTES_FILE:-$HOME/notes/dump.md}"
-  mkdir -p "$(dirname "$file")"
-  nvim -c 'lua require("notes")' "$file"
+  bash "$HOME/.config/zsh/notes.sh" "$@"
 }
 
 # tmux detach
