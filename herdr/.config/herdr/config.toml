@@ -78,6 +78,9 @@ resume_agents_on_restore = true
 [keys]
 prefix = "ctrl+a"
 
+# Unbind next-tab so prefix+n can open the notes pad.
+next_tab = ""
+
 # Ctrl+A, then I: open OpenCode and diffwatch for the focused pane's repo.
 # Detached commands receive HERDR_ACTIVE_* rather than pane-local variables.
 [[keys.command]]
@@ -85,11 +88,20 @@ key = "prefix+i"
 type = "shell"
 command = 'HERDR_ENV=1 HERDR_PANE_ID="$HERDR_ACTIVE_PANE_ID" bash "$HOME/.config/zsh/aicode.sh"'
 
-# Ctrl+A, then M: open the notes pad as a popup over the current pane.
+# Ctrl+A, then N: open the notes pad as a popup over the current pane.
 # Quit the pad with Ctrl+Q to close the popup.
 [[keys.command]]
-key = "prefix+m"
+key = "prefix+n"
 type = "popup"
 command = 'bash "$HOME/.config/zsh/notes.sh"'
+width = "80%"
+height = "80%"
+
+# Ctrl+A, then Alt+N: append whatever you last highlighted (copy_on_select puts
+# it on the clipboard), then open the pad.
+[[keys.command]]
+key = "prefix+alt+n"
+type = "popup"
+command = 'bash "$HOME/.config/zsh/notes.sh" --clip'
 width = "80%"
 height = "80%"
