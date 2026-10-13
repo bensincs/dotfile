@@ -52,6 +52,7 @@ STOW_PACKAGES=(
   diffnav
   git
   kitty
+  nvim
   pi
   starship
   zsh

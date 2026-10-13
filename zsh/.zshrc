@@ -97,6 +97,14 @@ tm() {
   fi
 }
 
+# n - open the live-synced notes pad. Works in any number of terminals or
+# herdr panes; edits autosave and appear everywhere as you type.
+n() {
+  local file="${NOTES_FILE:-$HOME/notes/dump.md}"
+  mkdir -p "$(dirname "$file")"
+  nvim -c 'lua require("notes")' "$file"
+}
+
 # tmux detach
 alias tmd="tmux detach"
 

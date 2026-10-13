@@ -20,6 +20,7 @@ brew "bat"
 brew "tldr"
 brew "tree"
 brew "zsh-autosuggestions"
+brew "neovim" # Live-synced notes pad (the `n` command)
 
 # --- Search / text / data ---
 brew "ripgrep"
