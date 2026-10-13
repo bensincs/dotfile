@@ -97,10 +97,10 @@ command = 'bash "$HOME/.config/zsh/notes.sh"'
 width = "80%"
 height = "80%"
 
-# Ctrl+A, then Alt+N: append whatever you last highlighted (copy_on_select puts
+# Ctrl+A, then Ctrl+N: append whatever you last highlighted (copy_on_select puts
 # it on the clipboard), then open the pad.
 [[keys.command]]
-key = "prefix+alt+n"
+key = "prefix+ctrl+n"
 type = "popup"
 command = 'bash "$HOME/.config/zsh/notes.sh" --clip'
 width = "80%"
