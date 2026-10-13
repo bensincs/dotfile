@@ -51,5 +51,5 @@ elif [[ ! -t 0 ]]; then
   cat >> "$file"
   echo "✓ noted" >&2
 else
-  exec nvim -c 'lua require("notes")' "$file"
+  exec env NOTES_PAD=1 nvim -c 'lua require("notes")' "$file"
 fi

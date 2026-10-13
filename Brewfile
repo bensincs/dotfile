@@ -21,6 +21,9 @@ brew "tldr"
 brew "tree"
 brew "zsh-autosuggestions"
 brew "neovim" # Live-synced notes pad (the `n` command)
+brew "tree-sitter-cli" # Builds Neovim treesitter parsers
+brew "typescript" # tsc 7, including its built-in language server
+brew "yaml-language-server" # Neovim LSP (mason's npm feed lags)
 
 # --- Search / text / data ---
 brew "ripgrep"
