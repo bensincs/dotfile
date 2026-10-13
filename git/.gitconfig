@@ -7,14 +7,6 @@
 [credential "https://gist.github.com"]
 	helper = 
 	helper = !/opt/homebrew/bin/gh auth git-credential
-[credential]
-	helper = 
-	helper = /usr/local/share/gcm-core/git-credential-manager
-[credential "https://dev.azure.com"]
-	useHttpPath = true
-[credential "azrepos:org/CSECodeHub"]
-	azureAuthority = https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47
-	username = bensinclair@microsoft.com
 [filter "lfs"]
 	required = true
 	clean = git-lfs clean -- %f
@@ -44,8 +36,3 @@
 	line-numbers-zero-style = "#586e75"
 	hunk-header-style = file line-number syntax
 	hunk-header-decoration-style = "#268bd2" box
-[credential "azrepos:org/incep-cortex"]
-	azureAuthority = https://login.microsoftonline.com/5ac4936b-1ac4-4e57-9e2b-48673491865e
-	username = bensinclair@microsoft.com
-[credential "http://localhost:3000"]
-	provider = generic
