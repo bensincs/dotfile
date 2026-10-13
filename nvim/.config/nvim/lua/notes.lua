@@ -12,6 +12,12 @@ o.backupcopy = "yes" -- write in place so file watchers keep working
 o.wrap = true
 o.linebreak = true
 
+-- ---- Header ----
+-- A bar above the text; it is not part of the file.
+o.winbar = " Notes"
+vim.api.nvim_set_hl(0, "WinBar", { ctermfg = 4, cterm = { bold = true } })
+vim.api.nvim_set_hl(0, "WinBarNC", { ctermfg = 8, cterm = { bold = true } })
+
 -- ---- Autosave ----
 local group = vim.api.nvim_create_augroup("notes", { clear = true })
 vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "InsertLeave", "FocusLost" }, {
@@ -46,6 +52,7 @@ vim.api.nvim_create_autocmd("VimEnter", {
     if arg ~= "" then
       watch(vim.fn.fnamemodify(arg, ":p"))
       vim.cmd("normal! G$")
+      vim.cmd("startinsert!") -- start typing at the end of the file
     end
   end,
 })
