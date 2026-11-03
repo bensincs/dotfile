@@ -33,7 +33,7 @@ The bootstrap script will:
 | **Terminal** | [Kitty](https://sw.kovidgoyal.net/kitty/) | GPU-accelerated, highly configurable |
 | **Font** | JetBrains Mono Nerd Font | Perfect for coding with icon support |
 | **Multiplexer** | Tmux | Per-project sessions managed via direnv |
-| **Editor** | VS Code Insiders + [OpenCode](https://opencode.ai/) | AI-powered coding assistant |
+| **Editor** | VS Code Insiders + pi | AI-powered coding assistant |
 | **Version Control** | Git + GitHub CLI + Delta | Beautiful diffs and seamless GitHub integration |
 
 ### Development Stack
@@ -78,10 +78,8 @@ dotfiles/
 │   └── .tmux.conf           # Keybindings and appearance
 ├── starship/             # ✨ Starship prompt theme
 │   └── .config/starship.toml
-├── kitty/                # 🐱 Kitty terminal emulator
+└── kitty/                # 🐱 Kitty terminal emulator
 │   └── .config/kitty/kitty.conf
-└── opencode/             # 🤖 OpenCode AI editor
-    └── .config/opencode/opencode.json
 ```
 
 Each directory is a **Stow package** that symlinks its contents to `$HOME` when activated.
@@ -169,7 +167,6 @@ brew upgrade
 | `c` | `clear` | Clear terminal |
 | `tm` | *function* | Attach/switch tmux session |
 | `tmd` | `tmux detach` | Detach from tmux |
-| `go` | *function* | Run OpenCode terminal executor |
 
 ### Adding New Tools
 
@@ -206,7 +203,7 @@ brew upgrade
 
 **Project-aware** - Tools like direnv and fnm automatically adapt to your current project
 
-**AI-powered** - OpenCode and GitHub Copilot integrated into the workflow
+**AI-powered** - pi and GitHub Copilot integrated into the workflow
 
 ## 🎯 Philosophy
 

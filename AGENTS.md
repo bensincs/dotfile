@@ -20,10 +20,11 @@ dotfiles/
 ├── zsh/                  # Zsh shell configuration (stow package)
 ├── tmux/                 # Tmux configuration (stow package)
 ├── starship/             # Starship prompt configuration (stow package)
-└── opencode/             # OpenCode AI editor configuration (stow package)
+├── pi/                   # Pi coding agent configuration (stow package)
+└── herdr/                # Herdr agent multiplexer configuration (stow package)
 ```
 
-**Stow Packages:** git, zsh, tmux, starship, opencode  
+**Stow Packages:** bottom, diffnav, git, kitty, nvim, pi, starship, zsh, tmux, herdr, copilot  
 Each package directory contains dotfiles that will be symlinked to `$HOME` when stowed.
 
 ## Build/Test/Lint Commands
@@ -52,7 +53,6 @@ stow git
 stow zsh
 stow tmux
 stow starship
-stow opencode
 
 # Remove symlinks for a package
 stow -D git

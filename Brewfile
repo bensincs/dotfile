@@ -77,10 +77,6 @@ brew "gettext"
 brew "nss"
 
 
-# --- OpenCode ---
-tap "anomalyco/tap"
-brew "opencode"
-
 # --- GitHub Copilot CLI ---
 cask "copilot-cli"
 

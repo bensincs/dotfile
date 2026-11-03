@@ -57,7 +57,6 @@ STOW_PACKAGES=(
   starship
   zsh
   tmux
-  opencode
   herdr
   copilot
 )
