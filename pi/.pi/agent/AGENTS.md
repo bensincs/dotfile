@@ -29,6 +29,29 @@ Be blunt, precise, and concise.
 - Do not invent requirements.
 - If something cannot be verified, say so plainly.
 
+## Herdr (agent multiplexer)
+- Coding agents on this machine (pi, Claude Code, Copilot CLI) run in herdr panes.
+- Inside herdr, `HERDR_ENV=1`. Your own ids are in `HERDR_PANE_ID`, `HERDR_TAB_ID` and `HERDR_WORKSPACE_ID`.
+- Use herdr only when the user asks about or for other agents, panes, or workspaces. Do not spawn agents or panes on your own.
+- Read-only actions are fine when asked. Ask before prompting, sending keys to, or closing another agent's pane.
+- Ids (e.g. `w1:p1T`) can change when panes close. Re-read them; never reuse old ones.
+- Commands print JSON unless noted:
+
+```bash
+herdr agent list                                   # all agents: pane_id, cwd, agent_status
+herdr agent read <pane> --lines 80                 # recent output (text)
+herdr agent prompt <pane> "text" --wait --timeout 600000
+herdr agent wait <pane> --until done --timeout 600000
+herdr agent start <name> --kind pi --pane <pane>  # start an agent in an idle shell pane
+herdr workspace list; herdr tab list; herdr pane list
+herdr pane split <pane> --direction right --no-focus  # new pane id at result.pane.pane_id
+herdr pane run <pane> "cmd"                        # type cmd + Enter
+herdr pane wait-output <pane> --match "ready" --timeout 30000
+```
+
+- `agent_status`: `idle`, `working`, `blocked` (waiting on the user), `done` (finished, not yet viewed), `unknown`.
+- Full guide: `herdr --skill`. Per-command help: `herdr <command> --help`.
+
 ## Output format
 - Default to: result, key details, next step.
 - Keep formatting simple.
