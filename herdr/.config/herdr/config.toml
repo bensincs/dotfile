@@ -67,6 +67,12 @@ enabled = true
 # Droid is noisy; keep it muted.
 droid = "off"
 
+# ---- Server ----
+# Size used before any client attaches (cloud dev box: the server runs headless as a service).
+[server]
+headless_cols = 160
+headless_rows = 45
+
 # ---- Agent session restore ----
 # Restart supported agent panes in their native sessions after a server
 # restart (Claude Code, Codex, OpenCode, Copilot CLI, etc.).

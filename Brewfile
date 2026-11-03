@@ -51,7 +51,7 @@ brew "azure/kubelogin/kubelogin"
 
 # --- Cloud / IaC ---
 tap "azure/functions"
-brew "azure-cli"
+brew "azure-cli" if OS.mac? # Linux: uv tool install azure-cli (bootstrap.sh)
 brew "cloudflare-wrangler"
 tap "hashicorp/tap"
 brew "hashicorp/tap/terraform"
@@ -73,35 +73,32 @@ brew "herdr"
 brew "pi-coding-agent"
 
 # --- Synergy ---
-brew "gettext"
-brew "nss"
+if OS.mac?
+  brew "gettext"
+  brew "nss"
+end
 
-
-# --- GitHub Copilot CLI ---
-cask "copilot-cli"
-
-# --- Claude Code ---
-cask "claude-code"
 
 # --- Microsoft Work IQ CLI ---
-# No Homebrew formula; brew bundle installs it via npm (fnm-managed Node).
+# No Homebrew formula; brew bundle installs it via npm (fnm-managed Node on macOS,
+# Homebrew's node on Linux).
+brew "node" if OS.linux?
 npm "@microsoft/workiq"
 
-# --- Notifications ---
-# Required by herdr's [ui.toast] delivery = "system" for desktop toasts.
-brew "terminal-notifier"
-
-# --- Terminal ---
-cask "kitty"
-
-# --- Fonts ---
-cask "font-jetbrains-mono-nerd-font"
-
-# --- Networking ---
-cask "wireshark"
+# --- macOS only: casks and desktop bits ---
+if OS.mac?
+  cask "copilot-cli"                    # GitHub Copilot CLI
+  cask "claude-code"                    # Claude Code
+  brew "terminal-notifier"              # herdr [ui.toast] delivery = "system"
+  cask "kitty"                          # terminal
+  cask "font-jetbrains-mono-nerd-font"
+  cask "wireshark"
+end
 
 # --- Media ---
 brew "ffmpeg"
 
-tap "bensincs/tap"
-cask "webshow"
+if OS.mac?
+  tap "bensincs/tap"
+  cask "webshow"
+end

@@ -151,12 +151,12 @@ if command -v zoxide >/dev/null 2>&1; then
 fi
 
 # zsh-autosuggestions - fish-like autosuggestions
-if [[ -f "/opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
+if [[ -f "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
   export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=244"
-  source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+  source "$HOMEBREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 fi
 
-export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+[[ -d /Applications/Docker.app ]] && export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
 # pi-whatsapp: allowed sender
 export WHATSAPP_ALLOW="REDACTED"

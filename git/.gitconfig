@@ -3,10 +3,10 @@
 	email = ben@sincs.co.uk
 [credential "https://github.com"]
 	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
+	helper = !gh auth git-credential
 [credential "https://gist.github.com"]
 	helper = 
-	helper = !/opt/homebrew/bin/gh auth git-credential
+	helper = !gh auth git-credential
 [filter "lfs"]
 	required = true
 	clean = git-lfs clean -- %f
