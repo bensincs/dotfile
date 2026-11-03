@@ -8,5 +8,7 @@
   "theme": "system",
   "defaultThinkingLevel": "high",
   "quietStartup": "header",
-  "packages": []
+  "packages": [
+    "git:git@github.com:bensincs/pi-whatsapp"
+  ]
 }
