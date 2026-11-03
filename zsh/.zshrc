@@ -115,6 +115,10 @@ alias k="kubectl"
 alias code="code-insiders"
 alias c="clear"
 
+# thea (AI agent server, requires corporate VPN)
+alias thea='ssh -t thea "sudo -iu hermes hermes --tui"'
+alias thea-shell='ssh -t thea "sudo -iu hermes"'
+
 # neovim
 if command -v nvim >/dev/null 2>&1; then
   alias vim="nvim"
