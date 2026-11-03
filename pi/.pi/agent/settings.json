@@ -9,6 +9,6 @@
   "defaultThinkingLevel": "high",
   "quietStartup": "header",
   "packages": [
-    "git:git@github.com:bensincs/pi-whatsapp"
+    "https://github.com/bensincs/pi-whatsapp"
   ]
 }
