@@ -87,6 +87,10 @@ cask "copilot-cli"
 # --- Claude Code ---
 cask "claude-code"
 
+# --- Microsoft Work IQ CLI ---
+# No Homebrew formula; brew bundle installs it via npm (fnm-managed Node).
+npm "@microsoft/workiq"
+
 # --- Notifications ---
 # Required by herdr's [ui.toast] delivery = "system" for desktop toasts.
 brew "terminal-notifier"
