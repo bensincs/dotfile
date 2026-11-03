@@ -158,5 +158,5 @@ fi
 
 [[ -d /Applications/Docker.app ]] && export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
-# pi-whatsapp: allowed sender
-export WHATSAPP_ALLOW="REDACTED"
+# Machine-local, untracked overrides and private values (e.g. WHATSAPP_ALLOW)
+[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
