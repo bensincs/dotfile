@@ -17,7 +17,8 @@ brew "direnv"
 brew "zoxide"
 brew "eza"
 brew "bat"
-brew "tldr"
+brew "tldr" if OS.mac?
+brew "tlrc" if OS.linux? # tldr client; Homebrew has no tldr formula on Linux
 brew "tree"
 brew "zsh-autosuggestions"
 brew "neovim" # Live-synced notes pad (the `n` command)

@@ -26,6 +26,10 @@ echo "▶ Homebrew ready: $(command -v brew)"
 # 2. Brew Bundle
 # ----------------------------
 if [ -f "$DOTFILES_DIR/Brewfile" ]; then
+  # Homebrew refuses third-party taps until trusted (safe to repeat, works before tapping).
+  echo "▶ Trusting Brewfile taps..."
+  brew trust --tap azure/kubelogin azure/functions hashicorp/tap bensincs/tap
+
   echo "▶ Installing Brewfile dependencies..."
   brew bundle install --file="$DOTFILES_DIR/Brewfile"
 else
