@@ -157,3 +157,6 @@ if [[ -f "/opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; t
 fi
 
 export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+
+# pi-whatsapp: allowed sender
+export WHATSAPP_ALLOW="REDACTED"
