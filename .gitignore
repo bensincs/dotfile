@@ -1,2 +1,7 @@
-# Node dependencies installed for opencode plugins (managed via package.json)
+# Local dependencies and validation artifacts
 node_modules/
+__pycache__/
+
+# Machine-local shell overrides may contain credentials.
+.zshenv.local
+.zshrc.local

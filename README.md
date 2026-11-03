@@ -1,235 +1,274 @@
-# 🏠 dotfiles
+# dotfiles
 
-> Personal macOS development environment, finely tuned and battle-tested.
+Source of truth for my macOS and Linux development environment. Homebrew installs
+packages; GNU Stow links their configuration into `$HOME`.
 
-This repository contains my complete macOS setup, managed with [GNU Stow](https://www.gnu.org/software/stow/) for symlink-based configuration and [Homebrew](https://brew.sh/) for dependency management. Every tool and alias is chosen for speed, ergonomics, and developer happiness.
+This records package choices and configuration, not a byte-for-byte machine image.
+Homebrew installs current releases. Neovim plugins are pinned in `lazy-lock.json`.
+Accounts, credentials, personal notes, and project-specific runtimes are separate.
 
-## ⚡ Quick Start
+## Platforms and prerequisites
+
+- **macOS, Apple Silicon:** Homebrew at `/opt/homebrew`.
+- **macOS, Intel:** Homebrew at `/usr/local`.
+- **Linux:** Homebrew normally at `/home/linuxbrew/.linuxbrew`. The CLI setup is
+  shared; macOS applications are excluded. Debian/Ubuntu prerequisites are below.
+- **Windows:** not supported. WSL is not separately validated.
+
+These are the intended targets, not a claim that every change has been tested on
+fresh installations of each OS.
+
+Before cloning:
 
 ```bash
-# Clone this repository
-git clone https://github.com/bensincs/dotfile.git ~/dotfiles
-cd ~/dotfiles
+# macOS: install Command Line Tools, then wait for installation to finish.
+xcode-select --install
+```
 
-# Run the bootstrap script
+```bash
+# Debian/Ubuntu: Homebrew and Git prerequisites.
+sudo apt-get update
+sudo apt-get install -y build-essential procps curl file git
+```
+
+Other Linux distributions need equivalent build tools. Use a normal user account,
+not root, with sudo access and internet access. Homebrew installation runs
+non-interactively; resolve any sudo or developer-tool prerequisites it reports.
+The shell configuration expects the `en_US.UTF-8` locale to be available.
+
+## Install
+
+```bash
+git clone https://github.com/bensincs/dotfile.git "$HOME/dotfiles"
+cd "$HOME/dotfiles"
 ./bootstrap.sh
 ```
 
-The bootstrap script will:
-1. ✅ Install Homebrew (if not already installed)
-2. 📦 Install all packages from the Brewfile
-3. 🔗 Symlink dotfiles to your home directory using Stow
-4. 🎨 Configure your shell with modern CLI tools
+The repository may live elsewhere: bootstrap explicitly targets `$HOME`.
+It performs these steps:
 
-**Compatibility:** Apple Silicon and Intel Macs (automatic Homebrew path detection)
+1. Find or install Homebrew and load its environment.
+2. Trust the Brewfile's third-party taps and install/update its dependencies.
+3. Create real directories for Herdr, Pi, and Copilot runtime state.
+4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
+5. On Linux, install Azure CLI with `uv tool` if `az` is missing.
+6. Restore the Neovim plugin versions from `lazy-lock.json`.
 
-## 🛠️ What's Included
+Rerunning bootstrap reapplies configuration and may upgrade packages. It does not
+back up or overwrite conflicting dotfiles, change your login shell, sign into
+services, or install every language runtime. Neovim installs language servers and
+Treesitter parsers on demand; those downloads are not all completed by bootstrap.
 
-### Core Environment
+### Existing dotfiles and recovery
 
-| Category | Tools | Why |
-|----------|-------|-----|
-| **Shell** | Zsh + [Starship](https://starship.rs/) | Fast, beautiful prompt with git integration |
-| **Terminal** | [Kitty](https://sw.kovidgoyal.net/kitty/) | GPU-accelerated, highly configurable |
-| **Font** | JetBrains Mono Nerd Font | Perfect for coding with icon support |
-| **Multiplexer** | Tmux | Per-project sessions managed via direnv |
-| **Editor** | VS Code Insiders + pi | AI-powered coding assistant |
-| **Version Control** | Git + GitHub CLI + Delta | Beautiful diffs and seamless GitHub integration |
+Stow refuses to replace ordinary files, directories with conflicting contents, or
+links owned by another checkout. Bootstrap prints the conflicting paths and exits
+before linking any packages. Homebrew installation and state-directory creation
+may already have happened.
 
-### Development Stack
-
-**Language & Runtime Managers**
-- **[fnm](https://github.com/Schniz/fnm)** - Fast Node.js version manager (auto-switches on `cd`)
-- **[uv](https://github.com/astral-sh/uv)** - Ultra-fast Python package installer (10-100x faster than pip)
-- **[asdf](https://asdf-vm.com/)** - Multi-runtime manager (Ruby, Java, etc.)
-- **[rustup](https://rustup.rs/)** - Rust toolchain installer
-
-**Modern CLI Replacements**
-- **[eza](https://github.com/eza-community/eza)** → `ls` - Modern ls with icons and git status
-- **[bat](https://github.com/sharkdp/bat)** → `cat` - Syntax highlighting and git integration
-- **[ripgrep](https://github.com/BurntSushi/ripgrep)** → `grep` - Blazing fast search (respects .gitignore)
-- **[fd](https://github.com/sharkdp/fd)** → `find` - User-friendly alternative to find
-- **[zoxide](https://github.com/ajeetdsouza/zoxide)** → `cd` - Smart directory jumper with frecency
-- **[bottom](https://github.com/ClementTsang/bottom)** → `top` - Graphical system monitor
-
-**Productivity Tools**
-- **[direnv](https://direnv.net/)** - Load/unload environment variables per directory
-- **[delta](https://github.com/dandavison/delta)** - Beautiful git diffs with syntax highlighting
-- **[jq](https://jqlang.github.io/jq/)** / **[yq](https://github.com/mikefarah/yq)** - JSON/YAML processing
-- **[tmux](https://github.com/tmux/tmux)** - Terminal multiplexer with session management
-
-**Cloud & Infrastructure**
-- **[Azure CLI](https://learn.microsoft.com/en-us/cli/azure/)** - Azure resource management
-- **[kubectl](https://kubernetes.io/docs/reference/kubectl/)** - Kubernetes cluster control
-
-## 📂 Repository Structure
-
-```
-dotfiles/
-├── bootstrap.sh           # 🚀 Main setup script (idempotent, safe to re-run)
-├── Brewfile              # 📦 Homebrew dependencies (kept up-to-date)
-├── git/                  # 🔧 Git configuration
-│   ├── .gitconfig            # User settings, aliases, delta integration
-│   └── .gitignore_global     # Global ignore patterns
-├── zsh/                  # 🐚 Zsh shell configuration
-│   ├── .zshenv              # Environment variables (sourced always)
-│   └── .zshrc               # Interactive shell config (aliases, plugins)
-├── tmux/                 # 🖥️  Tmux configuration
-│   └── .tmux.conf           # Keybindings and appearance
-├── starship/             # ✨ Starship prompt theme
-│   └── .config/starship.toml
-└── kitty/                # 🐱 Kitty terminal emulator
-│   └── .config/kitty/kitty.conf
-```
-
-Each directory is a **Stow package** that symlinks its contents to `$HOME` when activated.
-
-## 📖 Usage Guide
-
-### Daily Workflow
-
-**Tmux Session Management** (powered by direnv)
-```bash
-# Create .envrc in any project directory
-cd ~/projects/myapp
-echo 'export TMUX_SESSION=myapp' > .envrc
-direnv allow
-
-# Attach to project session (or create if doesn't exist)
-tm        # Uses TMUX_SESSION from .envrc, or defaults to 'main'
-
-# Detach from current session
-tmd       # Alias for 'tmux detach'
-```
-
-**Smart Directory Navigation**
-```bash
-z myapp      # Jump to frequently used directories (zoxide)
-ll           # Modern ls with icons and git status (eza)
-cat file.py  # Syntax-highlighted output (bat)
-```
-
-**Version Management**
-```bash
-# Node.js (auto-switches based on .nvmrc or .node-version)
-fnm use --latest
-
-# Python (use uv instead of pip/venv)
-uv init              # Initialize new project
-uv sync              # Install dependencies from pyproject.toml
-uv run script.py     # Run with auto-managed venv
-```
-
-### Managing Dotfiles
+Review and move **only the reported conflicts** outside this repository. For
+example, if an existing `.zshrc` conflicts:
 
 ```bash
-# Symlink a specific package
-stow git
-
-# Remove symlinks for a package
-stow -D zsh
-
-# Restow after modifying files (useful for updates)
-stow -R tmux
-
-# Preview what would be symlinked (dry run)
-stow -n -v starship
+backup="$HOME/dotfiles-backup/$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$backup"
+mv "$HOME/.zshrc" "$backup/.zshrc"
+./bootstrap.sh
 ```
 
-### Managing Homebrew Packages
+Keep the backup until you have migrated any settings you need. Do not use
+`stow --adopt`: it can replace the repository's files with machine-local content,
+including secrets. For links owned by an older checkout, unstow from that checkout
+first rather than deleting the checkout while its links are still active.
+
+To undo the Zsh links and restore that backup:
 
 ```bash
-# Install/update packages from Brewfile
-brew bundle install
-
-# Verify all packages are installed
-brew bundle check
-
-# Clean up packages not in Brewfile
-brew bundle cleanup
-
-# Update all packages
-brew upgrade
+cd "$HOME/dotfiles"
+stow --target="$HOME" --delete zsh
+mv "$backup/.zshrc" "$HOME/.zshrc"
 ```
 
-## 🔧 Key Aliases & Functions
+Unstowing removes links, not Homebrew packages or application state. Moving the
+checkout also breaks its links: unstow before moving it, then restow afterward.
 
-| Alias | Command | Description |
-|-------|---------|-------------|
-| `ll` | `eza -lah --icons --git` | Detailed list with git status |
-| `cat` | `bat --style=auto` | Syntax-highlighted cat |
-| `grep` | `rg` | Fast ripgrep search |
-| `cd` | `z` | Smart zoxide navigation |
-| `gs` | `git status` | Quick git status |
-| `gp` | `git pull` | Quick git pull |
-| `k` | `kubectl` | Kubernetes shorthand |
-| `code` | `code-insiders` | VS Code Insiders |
-| `c` | `clear` | Clear terminal |
-| `tm` | *function* | Attach/switch tmux session |
-| `tmd` | `tmux detach` | Detach from tmux |
+## Finish setting up the machine
 
-### Adding New Tools
+### Shell and local settings
 
-1. **Add to Brewfile** (if installing via Homebrew)
-   ```bash
-   brew "tool-name"    # CLI tool
-   cask "app-name"     # GUI application
-   ```
+Load Homebrew in the calling shell first (bootstrap runs in a child process),
+then start Zsh. This also makes a newly installed Linux Zsh discoverable:
 
-2. **Create Stow package** (if tool has config files)
-   ```bash
-   mkdir newtool/
-   # Mirror the structure as it appears in $HOME
-   # Example: ~/.config/tool/config.yml becomes:
-   mkdir -p newtool/.config/tool
-   vim newtool/.config/tool/config.yml
-   ```
+```bash
+if ! command -v brew >/dev/null 2>&1; then
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
+    if [ -x "$brew_bin" ]; then eval "$("$brew_bin" shellenv)"; break; fi
+  done
+else
+  eval "$(brew shellenv)"
+fi
+exec zsh -l
+```
 
-3. **Add to bootstrap script**
-   - Add package name to `STOW_PACKAGES` array in `bootstrap.sh`
+Linux installs Zsh through Homebrew; macOS uses the included Zsh. Bootstrap does
+not change the account's default shell. To make the currently selected Zsh the
+login shell, register its path if necessary, then use `chsh`:
 
-4. **Activate**
-   ```bash
-   stow newtool
-   ```
+```bash
+zsh_path="$(command -v zsh)"
+/usr/bin/grep -qxF "$zsh_path" /etc/shells || printf '%s\n' "$zsh_path" | sudo tee -a /etc/shells
+chsh -s "$zsh_path"
+```
 
-## 💡 Design Principles
+Log out and back in for the account change to take effect. On managed machines,
+follow the administrator's shell policy instead.
 
-**Modern over traditional** - Use faster, more ergonomic tools (ripgrep > grep, eza > ls, bat > cat)
+Machine-specific settings and secrets belong in these files, **not this repo**:
 
-**Declarative configuration** - Everything is version controlled and reproducible
+- `~/.zshenv.local`: environment needed by interactive and non-interactive Zsh.
+- `~/.zshrc.local`: interactive-only overrides.
 
-**Symlink-based** - Changes to dotfiles are reflected immediately, no manual copying
+Both are sourced last in their respective startup files and are gitignored.
+Create private files before adding values:
 
-**Project-aware** - Tools like direnv and fnm automatically adapt to your current project
+```bash
+(umask 077; touch "$HOME/.zshenv.local" "$HOME/.zshrc.local")
+chmod 600 "$HOME/.zshenv.local" "$HOME/.zshrc.local"
+nvim "$HOME/.zshenv.local"
+```
 
-**AI-powered** - pi and GitHub Copilot integrated into the workflow
+The shared PATH preserves inherited entries and adds Homebrew, `~/.local/bin`,
+Cargo tools, asdf shims, and Homebrew rustup proxies. Shell history is stored in
+`~/.zsh_history`. Git uses Neovim as its editor on both platforms. VS Code Insiders
+is installed on macOS, where `code` aliases `code-insiders` when available. On
+Linux it is optional: install it using Microsoft's instructions if wanted.
 
-## 🎯 Philosophy
+### Runtimes
 
-This setup prioritizes:
-- **Speed**: Fast tools (ripgrep, fd, uv) and minimal shell startup time
-- **Ergonomics**: Smart aliases, auto-completion, and sensible defaults
-- **Reproducibility**: Everything codified, nothing manual
-- **Modularity**: Each tool is a separate Stow package
-- **Safety**: Bootstrap script is idempotent and non-destructive
+Homebrew Node runs global CLI tools. Use fnm for project Node versions:
 
-## 🖥️ Platform Support
+```bash
+fnm install --lts --use
+fnm default "$(fnm current)"
+```
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| **macOS (Apple Silicon)** | ✅ Fully supported | Homebrew at `/opt/homebrew` |
-| **macOS (Intel)** | ✅ Fully supported | Homebrew at `/usr/local` |
-| **Linux** | ⚠️ Untested | May work with modifications |
-| **Windows** | ❌ Not supported | WSL2 might work but untested |
+Project `.node-version` / `.nvmrc` files take precedence when switching directories.
+Install a Rust toolchain when needed:
 
-## 📝 Notes
+```bash
+rustup default stable
+```
 
-- **Idempotent**: Bootstrap script is safe to run multiple times
-- **Instant updates**: Dotfiles are symlinked, not copied (changes take effect immediately)
-- **No secrets**: This repo contains no API keys, tokens, or passwords
-- **Personal config**: These are my preferences - fork and customize to your liking!
+For Python projects use `uv sync` and `uv run`; uv manages their environments.
+For asdf projects, install the project's required plugins, then run `asdf install`
+from the directory containing `.tool-versions`. No global asdf runtimes or plugins
+are selected by this repository.
 
-## 📄 License
+The SDKMAN loader is optional. Bootstrap does not install SDKMAN or any JVM SDKs;
+if needed, install it following <https://sdkman.io/install> and record project
+requirements separately.
 
-MIT - Personal configuration files. Use at your own risk and modify to your heart's content.
+### Accounts and authentication
+
+These are manual, per-machine steps. Do not copy their tokens into the repo.
+
+- **GitHub:** run `gh auth login`, then `gh auth status`. Shared Git credentials
+  use `gh` from PATH. Avoid replacing them with machine-specific absolute paths;
+  commands such as `gh auth setup-git` may rewrite the symlinked `.gitconfig`.
+- **Azure:** run `az login`, then `az account set --subscription "Subscription Name"`
+  if the default subscription is not the intended one.
+- **Cloudflare:** run `wrangler login` when using Wrangler.
+- **Pi:** start `pi`, then use `/login` for the configured GitHub Copilot provider.
+  Model defaults and Cmd+digit bindings live in `pi/.pi/agent/`; available models
+  depend on the account. Use `/model` if a configured model is unavailable.
+- **Work IQ:** complete Microsoft's first-run EULA/consent and sign-in flow; see
+  <https://github.com/microsoft/work-iq>. Its MCP entry is in Pi's `mcp.json`.
+- **WhatsApp:** Pi installs the configured `pi-whatsapp` package. Follow its setup
+  and device-pairing instructions at <https://github.com/bensincs/pi-whatsapp>.
+  Pairing state and private settings are not stored here.
+
+Copilot CLI and Claude Code are installed as macOS casks. On Linux they are
+optional, separate installs; Pi is installed on both platforms.
+
+Restore SSH keys, signing keys, Kubernetes credentials, notes, and other personal
+files from their separate secure backups as needed. This repo does not provision
+a Docker daemon, cloud resources, VS Code extensions, or per-project `.envrc` files.
+
+## Configuration layout
+
+Each tool directory is a Stow package. Its contents mirror their location in
+`$HOME`; for example, `git/.gitconfig` becomes `~/.gitconfig`.
+
+| Path | Purpose |
+| --- | --- |
+| `bootstrap.sh` | Installation order and active Stow packages |
+| `Brewfile` | Homebrew, macOS cask, and global npm dependencies |
+| `bottom/` | Compact graph layout (`btm -C ~/.config/bottom/graphs.toml`) |
+| `copilot/` | Copilot CLI preferences |
+| `diffnav/` | Diff viewer layout and theme |
+| `git/` | Identity, GitHub credentials, Delta, global ignores |
+| `herdr/` | Multiplexer, keybindings, notifications, session restore |
+| `kitty/` | macOS terminal, font, palette, Cmd+digit escape sequences |
+| `nvim/` | Editor, pinned plugins, LSP, Treesitter, notes pad |
+| `pi/` | Agent instructions, MCP servers, package, model shortcuts, skills |
+| `starship/` | Prompt configuration |
+| `tmux/` | Multiplexer configuration, Ctrl+A prefix |
+| `zsh/` | Shell startup files and helper scripts |
+| `tests/` | Isolated setup regression checks |
+
+Bootstrap stows every listed package except Kitty on Linux. Pi's Cloudflare skills
+are vendored reference material with their own `LICENSE`; do not edit them as part
+of routine machine setup. Application-written settings are symlinked too: inspect
+`git diff` after using tools that update their own configuration.
+
+## Daily commands
+
+- `ll`, `lt`, `la`: eza listings; `cat`: bat; `grep`: ripgrep.
+- `z` / `cd`: zoxide navigation. `gs`, `gp`: Git status and pull. `k`: kubectl.
+- `tm`: attach/switch to `$TMUX_SESSION`, defaulting to `main`; `tmd`: detach.
+  Set `export TMUX_SESSION=myapp` in a project's `.envrc` and run `direnv allow`
+  for a project-specific session. Nothing auto-attaches at shell startup.
+- `diffwatch`: watch changes from the commit at launch, including later commits,
+  without changing your staging area.
+- `n`: open `~/notes/dump.md`; `n some text` or `command | n`: append. Override
+  with `NOTES_FILE`. Ctrl+Q closes the pad; Ctrl+E toggles its file tree.
+  Herdr: Ctrl+A, then N opens the pad. Ctrl+A, then Ctrl+N also captures the
+  clipboard first; clipboard capture uses macOS `pbpaste` and is macOS-only.
+- Kitty Cmd+digit selects configured Pi model shortcuts; edit
+  `pi/.pi/agent/model-shortcuts.json`, then `/reload` in Pi.
+
+## Verify and maintain
+
+From the repository root:
+
+```bash
+# Syntax, configuration, isolated shells, and sandboxed Stow/bootstrap tests.
+# Requires Python 3.11+ (included in Brewfile), Zsh, and GNU Stow.
+# Does not install packages or change your real home directory.
+python3.11 -m unittest discover -s tests -v
+
+# Confirm dependency installation and interactive shell setup on this machine.
+brew bundle check --file=Brewfile
+zsh -ic 'command -v gh nvim pi az; print -r -- "History: $HISTFILE"'
+
+# Review machine-written changes before committing.
+git status --short
+git diff
+```
+
+The isolated tests do not replace fresh-OS provisioning or account sign-in checks.
+To update packages and reapply configuration, run `./bootstrap.sh` again. To preview
+or remove one package, explicitly target the home directory:
+
+```bash
+stow --target="$HOME" --simulate --verbose zsh
+stow --target="$HOME" --restow zsh
+stow --target="$HOME" --delete zsh
+```
+
+Before removing packages, inspect `brew bundle cleanup --file=Brewfile` without
+`--force`. Unlisted packages may still be needed by other work.
+
+When adding a tool, update `Brewfile`, add a package mirroring its home-directory
+layout if needed, add it to `STOW_PACKAGES` in `bootstrap.sh`, document its setup
+and platform limits here, and run the checks above.

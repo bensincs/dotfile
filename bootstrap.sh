@@ -10,15 +10,25 @@ echo "▶ Using dotfiles directory: $DOTFILES_DIR ($OS)"
 # ----------------------------
 # 1. Install Homebrew (if missing)
 # ----------------------------
-if ! command -v brew >/dev/null 2>&1; then
+find_homebrew() {
+  if command -v brew >/dev/null 2>&1; then return 0; fi
+  for b in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
+    if [ -x "$b" ]; then
+      export PATH="${b%/*}:$PATH"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Reuse an existing installation even when the calling shell has not loaded it.
+if ! find_homebrew; then
   echo "▶ Homebrew not found. Installing..."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  find_homebrew
 fi
-
-# Ensure brew is on PATH (Apple Silicon, Intel, Linux)
-for b in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
-  if [ -x "$b" ]; then eval "$("$b" shellenv)"; break; fi
-done
+eval "$(brew shellenv)"
+export PATH="$HOME/.local/bin:$PATH"
 
 echo "▶ Homebrew ready: $(command -v brew)"
 
@@ -69,14 +79,16 @@ STOW_PACKAGES=(
 )
 [ "$OS" = Darwin ] && STOW_PACKAGES+=(kitty)
 
-for pkg in "${STOW_PACKAGES[@]}"; do
-  if [ -d "$pkg" ]; then
-    echo "  • stow $pkg"
-    stow "$pkg"
-  else
-    echo "  ⚠ package '$pkg' not found, skipping"
-  fi
-done
+# Check the complete set before linking anything. Never adopt or overwrite
+# existing dotfiles automatically; the README explains how to back them up.
+if ! stow --dir="$DOTFILES_DIR" --target="$HOME" --simulate "${STOW_PACKAGES[@]}"; then
+  echo "⚠ Dotfile conflicts found. No packages were stowed." >&2
+  echo "  Back up the conflicting paths outside this repo, then rerun bootstrap.sh." >&2
+  echo "  See README.md: Existing dotfiles and recovery." >&2
+  exit 1
+fi
+
+stow --dir="$DOTFILES_DIR" --target="$HOME" "${STOW_PACKAGES[@]}"
 
 # ----------------------------
 # 5. Linux-only tools Homebrew doesn't provide there
