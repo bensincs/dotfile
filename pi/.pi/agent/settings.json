@@ -8,7 +8,5 @@
   "theme": "system",
   "defaultThinkingLevel": "high",
   "quietStartup": "header",
-  "packages": [
-    "git:github.com/llblab/pi-telegram"
-  ]
+  "packages": []
 }
