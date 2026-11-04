@@ -96,7 +96,6 @@ if OS.mac?
   brew "terminal-notifier"              # herdr [ui.toast] delivery = "system"
   cask "kitty"                          # terminal
   cask "font-jetbrains-mono-nerd-font"
-  cask "wireshark"
 end
 
 # --- Media ---
