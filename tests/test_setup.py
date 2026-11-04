@@ -40,8 +40,8 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_shell_syntax(self):
-        for path in [ROOT / "bootstrap.sh", ROOT / "start-thea.sh",
-                     *ROOT.glob("scripts/*.sh"), *ROOT.glob("zsh/.config/zsh/*.sh")]:
+        for path in [ROOT / "bootstrap.sh", ROOT / ".thea/start.sh",
+                     *ROOT.glob("zsh/.config/zsh/*.sh")]:
             with self.subTest(path=path):
                 self.assert_success(self.run_command(["bash", "-n", str(path)]))
         if ZSH:
@@ -175,6 +175,7 @@ if alias code >/dev/null 2>&1; then exit 1; fi
                 self.assertEqual((home / ".gitconfig").resolve(), ROOT / "git/.gitconfig")
                 self.assertEqual((home / ".zshrc").resolve(), ROOT / "zsh/.zshrc")
                 self.assertEqual((home / ".thea/AGENTS.md").resolve(), ROOT / ".thea/AGENTS.md")
+                self.assertEqual((home / ".thea/start.sh").resolve(), ROOT / ".thea/start.sh")
                 self.assertEqual((home / ".thea/.pi/settings.json").resolve(), ROOT / ".thea/.pi/settings.json")
                 for relative in (".config/herdr", ".pi/agent", ".copilot", ".thea", ".thea/.pi"):
                     self.assertTrue((home / relative).is_dir())

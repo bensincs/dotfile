@@ -203,15 +203,16 @@ learned skills. Her main job is to coordinate other agents in the **shared** Her
 server. Workers use their own repository/worktree directories; Thea has no projects
 directory and does not become a second checkout manager.
 
-The `.thea` package deploys only `AGENTS.md` and `.pi/settings.json`.
-Its `.stow-local-ignore` allowlist prevents deploying any runtime data accidentally
-created in the source directory.
+All Thea-specific runtime code lives inside `.thea`. The package deploys
+`AGENTS.md`, `.pi/settings.json`, and `start.sh`. Its `.stow-local-ignore` allowlist
+prevents deploying any runtime data accidentally created in the source directory.
 The live `~/.thea` and `~/.thea/.pi` must be **real directories**, not folded Stow
-links into this checkout. Only the two seed files are symlinked:
+links into this checkout. Only the configuration and service script are symlinked:
 
 ```text
 ~/.thea/
 ├── AGENTS.md              # stowed identity and operating rules
+├── start.sh               # stowed installer, supervisor, and Pi launcher
 ├── .pi/
 │   ├── settings.json      # stowed profile; only this profile loads WhatsApp
 │   └── skills/            # learned, locally owned orchestration skills
@@ -259,7 +260,7 @@ Requires Linux, a working systemd user manager, Herdr, Pi, jq, flock, and Python
 After bootstrap, install the unit without enabling or starting it:
 
 ```bash
-./start-thea.sh install
+~/.thea/start.sh install
 nvim "$HOME/.thea/state/env"
 ```
 
@@ -277,8 +278,11 @@ stow --dir="$PWD" --target="$HOME/.thea" --simulate .thea
 stow --dir="$PWD" --target="$HOME/.thea" .thea
 ```
 
-The installer never overwrites an unmanaged `thea.service`. It references this
-checkout's absolute script path; rerun `install` after moving the checkout.
+`~/.thea/start.sh` is the single entry point for installation, startup, supervision,
+and Pi launching. The installer never overwrites an unmanaged `thea.service`.
+Systemd's installed unit lives in `~/.config/systemd/user/` and references the stable
+`~/.thea/start.sh` path. If the checkout moves, unstow before moving and restow
+afterward; the unit's script path does not need changing.
 
 ### Controlled WhatsApp handoff
 
@@ -296,13 +300,13 @@ For the existing linked device:
 3. Start Thea only when the handoff is intended.
 
 ```bash
-./start-thea.sh migrate-whatsapp
+~/.thea/start.sh migrate-whatsapp
 # If the old plugin used PI_WHATSAPP_DIR, pass that old directory explicitly:
-# ./start-thea.sh migrate-whatsapp /path/to/old/whatsapp
-./start-thea.sh start
+# ~/.thea/start.sh migrate-whatsapp /path/to/old/whatsapp
+~/.thea/start.sh start
 ```
 
-For a new device/account, run `./start-thea.sh setup` instead of migration. It opens
+For a new device/account, run `~/.thea/start.sh setup` instead of migration. It opens
 Pi interactively in Thea's home: complete `/login` if needed and scan the WhatsApp
 QR code. Exit that setup Pi before starting the service.
 
@@ -331,10 +335,10 @@ unrelated occupant, or a conflicting agent name are left alone and logged. Do no
 put workers in Thea's workspace.
 
 ```bash
-./start-thea.sh status
-./start-thea.sh logs
-./start-thea.sh attach   # open the shared Herdr UI; select workspace Thea
-./start-thea.sh stop     # disable service and close only its validated Pi pane
+~/.thea/start.sh status
+~/.thea/start.sh logs
+~/.thea/start.sh attach   # open the shared Herdr UI; select workspace Thea
+~/.thea/start.sh stop     # disable service and close only its validated Pi pane
 ```
 
 Stopping Thea does not stop the shared server, workers, or remove learned data.
@@ -364,8 +368,8 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | Path | Purpose |
 | --- | --- |
 | `bootstrap.sh` | Installation order and active Stow packages |
-| `.thea/` | Seed identity and project Pi settings, stowed into `~/.thea` |
-| `start-thea.sh`, `scripts/thea.sh` | Opt-in Linux service, setup, and supervision |
+| `.thea/` | Identity, Pi settings, and service code, stowed into `~/.thea` |
+| `.thea/start.sh` | Single entry point: Linux service, setup, and supervision |
 | `Brewfile` | Homebrew, macOS cask, and global npm dependencies |
 | `bottom/` | Compact graph layout (`btm -C ~/.config/bottom/graphs.toml`) |
 | `copilot/` | Copilot CLI preferences |

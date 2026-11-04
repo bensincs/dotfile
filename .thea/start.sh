@@ -2,8 +2,8 @@
 # Linux service wiring. Never invoked by bootstrap; live activation is explicit.
 set -euo pipefail
 
-DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 THEA_HOME="$HOME/.thea"
+THEA_SCRIPT="$THEA_HOME/start.sh"
 STATE="$THEA_HOME/state"
 UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 
@@ -17,7 +17,7 @@ require_linux() {
 prepare_home() {
   # Folding either directory into the checkout would leak growing private state.
   [[ ! -L "$THEA_HOME" && ! -L "$THEA_HOME/.pi" ]] || die "~/.thea and ~/.thea/.pi must be real directories, not symlinks."
-  [[ -f "$THEA_HOME/AGENTS.md" && -f "$THEA_HOME/.pi/settings.json" ]] || die "Stow Thea first; run bootstrap.sh or see README.md."
+  [[ -f "$THEA_HOME/AGENTS.md" && -f "$THEA_HOME/.pi/settings.json" && -f "$THEA_SCRIPT" ]] || die "Stow Thea first; run bootstrap.sh or see README.md."
   umask 077
   mkdir -p "$THEA_HOME/memory" "$THEA_HOME/tasks" "$THEA_HOME/sessions" \
     "$THEA_HOME/.pi/skills" "$STATE/whatsapp"
@@ -142,7 +142,7 @@ service_tick() {
     (.foreground_processes | length > 0) and all(.foreground_processes[]; .pid == $shell)' <<< "$process" >/dev/null; then
     return 0
   fi
-  printf -v command '%q ' bash "$DOTFILES_DIR/scripts/thea.sh" run
+  printf -v command '%q ' bash "$THEA_SCRIPT" run
   shared_herdr pane run "$pane" "$command" >/dev/null || return 1
   log "Launched Thea in $pane; next retry no sooner than $launch_delay seconds."
   next_launch=$((now + launch_delay))
@@ -221,13 +221,13 @@ install_unit() {
   command -v herdr >/dev/null || die "herdr is required."
   command -v pi >/dev/null || die "pi is required."
   mkdir -p "$UNIT_DIR"
-  python3.11 - "$UNIT_DIR/thea.service" "$DOTFILES_DIR/scripts/thea.sh" "$THEA_HOME" <<'PY'
+  python3.11 - "$UNIT_DIR/thea.service" "$THEA_SCRIPT" "$THEA_HOME" <<'PY'
 import os
 from pathlib import Path
 import sys
 
 path, script, home = map(Path, sys.argv[1:])
-marker = "# Managed by dotfiles start-thea.sh"
+marker = "# Managed by dotfiles .thea/start.sh"
 if path.exists() and not path.read_text().startswith(marker):
     raise SystemExit(f"Refusing to overwrite an unmanaged unit: {path}")
 
@@ -300,5 +300,5 @@ case "${1:-start}" in
   attach) shared_herdr ;;
   run) run_pi ;;
   supervise) supervise "${2:-}" ;;
-  *) die "Usage: ./start-thea.sh {install|start|setup|migrate-whatsapp [old-dir]|stop|status|logs|attach}" ;;
+  *) die "Usage: ~/.thea/start.sh {install|start|setup|migrate-whatsapp [old-dir]|stop|status|logs|attach}" ;;
 esac

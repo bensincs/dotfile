@@ -10,8 +10,8 @@ packages; GNU Stow links configuration into `$HOME`.
 - `bootstrap.sh`: installation order, `STOW_PACKAGES`, and the separately targeted
   `.thea` profile package.
 - Tool directories: Stow packages mirroring their home-directory layout.
-- `.thea/`: Thea's two seed files, stowed into a real `~/.thea` directory.
-- `start-thea.sh`, `scripts/thea.sh`: opt-in Linux service wiring and supervision.
+- `.thea/`: Thea's identity, settings, and service code, stowed into a real
+  `~/.thea` directory. `.thea/start.sh` is the single service entry point.
 - `tests/`: isolated setup/service regression tests with fake Herdr, Pi, and systemd.
 
 Packages: bottom, copilot, diffnav, git, herdr, kitty, nvim, pi, starship, tmux,
@@ -37,7 +37,8 @@ setup behavior, dependencies, platform support, or manual steps change.
 ## Thea invariants
 
 - `.thea` is a special Stow package targeting `$HOME/.thea`, not `$HOME`.
-  Pre-create real `~/.thea` and `~/.thea/.pi` directories; stow only the seed files.
+  Pre-create real `~/.thea` and `~/.thea/.pi` directories; deploy only identity,
+  settings, and `start.sh`. Keep all Thea-specific runtime code inside `.thea/`.
 - Thea is the orchestrator. Workers belong in their own repository/worktree
   directories and separate workspaces, never in Thea's single-tab workspace.
 - Only Thea's project profile declares WhatsApp. Ordinary Pi settings must not.
@@ -64,7 +65,7 @@ For syntax-only checks:
 
 ```bash
 bash -n bootstrap.sh
-for file in start-thea.sh scripts/*.sh zsh/.config/zsh/*.sh; do bash -n "$file"; done
+for file in .thea/start.sh zsh/.config/zsh/*.sh; do bash -n "$file"; done
 zsh -n zsh/.zshenv
 zsh -n zsh/.zshrc
 ```

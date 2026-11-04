@@ -9,6 +9,7 @@ __pycache__/
 # Thea source is seed configuration only, even if Pi is launched here by mistake.
 .thea/*
 !.thea/AGENTS.md
+!.thea/start.sh
 !.thea/.stow-local-ignore
 !.thea/.pi/
 .thea/.pi/*

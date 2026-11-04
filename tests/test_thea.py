@@ -4,6 +4,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -22,6 +23,7 @@ class TheaTests(unittest.TestCase):
         self.thea = self.home / ".thea"
         (self.thea / ".pi").mkdir(parents=True)
         (self.thea / "AGENTS.md").symlink_to(ROOT / ".thea/AGENTS.md")
+        (self.thea / "start.sh").symlink_to(ROOT / ".thea/start.sh")
         (self.thea / ".pi/settings.json").symlink_to(ROOT / ".thea/.pi/settings.json")
         self.bin = self.work / "bin"
         self.bin.mkdir()
@@ -69,7 +71,7 @@ Path(os.environ["MOCK_PI_LOG"]).write_text(json.dumps({
 
     def run_thea(self, *args):
         return subprocess.run(
-            ["bash", str(ROOT / "start-thea.sh"), *args], env=self.env,
+            ["bash", str(self.thea / "start.sh"), *args], env=self.env,
             cwd=self.work, text=True, capture_output=True, timeout=30,
         )
 
@@ -122,6 +124,7 @@ Path(os.environ["MOCK_PI_LOG"]).write_text(json.dumps({
         )
         self.assert_success(result)
         self.assertTrue((target / "AGENTS.md").is_symlink())
+        self.assertTrue((target / "start.sh").is_symlink())
         self.assertTrue((target / ".pi/settings.json").is_symlink())
         for relative in ("memory", "state", "unexpected.txt", ".pi/skills", ".pi/git", ".stow-local-ignore"):
             self.assertFalse((target / relative).exists(), relative)
@@ -134,7 +137,8 @@ Path(os.environ["MOCK_PI_LOG"]).write_text(json.dumps({
         self.assert_success(self.run_thea("install"))
         unit = self.home / ".config/systemd/user/thea.service"
         self.assertIn('WorkingDirectory=' + str(self.thea), unit.read_text())
-        self.assertIn('scripts/thea.sh" supervise', unit.read_text())
+        self.assertIn('ExecStart=/bin/bash "' + str(self.thea / "start.sh") + '" supervise', unit.read_text())
+        self.assertNotIn(str(ROOT), unit.read_text())
         self.assertEqual(memory.read_text(), "# Already learned\nDo not overwrite.\n")
         self.assertTrue((self.thea / ".pi/skills").is_dir())
         self.assertTrue((self.thea / "tasks").is_dir())
@@ -168,12 +172,13 @@ Path(os.environ["MOCK_PI_LOG"]).write_text(json.dumps({
     def test_folded_home_is_rejected(self):
         other = self.work / "checkout"
         other.mkdir()
+        shutil.copyfile(ROOT / ".thea/start.sh", other / "start.sh")
         shutil.rmtree(self.thea)
         self.thea.symlink_to(other, target_is_directory=True)
         result = self.run_thea("install")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("must be real directories", result.stderr)
-        self.assertEqual(list(other.iterdir()), [])
+        self.assertEqual(list(other.iterdir()), [other / "start.sh"])
 
     def test_start_refuses_live_legacy_whatsapp(self):
         self.private_env()
@@ -235,7 +240,7 @@ Path(os.environ["MOCK_PI_LOG"]).write_text(json.dumps({
         launches = [call for call in calls if call[:2] == ["pane", "run"]]
         self.assertEqual(len(launches), 1)
         self.assertEqual(launches[0][2], "w99:p1")
-        self.assertIn("scripts/thea.sh", launches[0][3])
+        self.assertEqual(shlex.split(launches[0][3]), ["bash", str(self.thea / "start.sh"), "run"])
         self.assertTrue((self.thea / "state/pane-id").exists())
         self.assertFalse(any(call[:2] in (["pane", "close"], ["server", "stop"]) for call in calls))
 
@@ -302,7 +307,7 @@ Path(os.environ["MOCK_PI_LOG"]).write_text(json.dumps({
                 text=True, capture_output=True, timeout=10,
             )
             self.assert_success(result)
-        for path in (".thea/AGENTS.md", ".thea/.pi/settings.json"):
+        for path in (".thea/AGENTS.md", ".thea/.pi/settings.json", ".thea/start.sh"):
             result = subprocess.run(
                 ["git", "check-ignore", "--no-index", path], cwd=ROOT, env=self.env,
                 text=True, capture_output=True, timeout=10,
