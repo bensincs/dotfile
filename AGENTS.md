@@ -7,12 +7,9 @@ packages; GNU Stow links configuration into `$HOME`.
 
 - `README.md`: installation, manual account/runtime setup, recovery, workflows.
 - `Brewfile`: package dependencies and platform-specific applications.
-- `bootstrap.sh`: installation order, `STOW_PACKAGES`, and the separately targeted
-  `.thea` profile package.
+- `bootstrap.sh`: installation order and the authoritative `STOW_PACKAGES` list.
 - Tool directories: Stow packages mirroring their home-directory layout.
-- `.thea/`: Thea's identity, settings, and service code, stowed into a real
-  `~/.thea` directory. `.thea/start.sh` is the single service entry point.
-- `tests/`: isolated setup/service regression tests with fake Herdr, Pi, and systemd.
+- `tests/`: isolated setup regression tests.
 
 Packages: bottom, copilot, diffnav, git, herdr, kitty, nvim, pi, starship, tmux,
 zsh. Kitty is macOS-only. Pi's Cloudflare skills are vendored reference material
@@ -34,20 +31,11 @@ setup behavior, dependencies, platform support, or manual steps change.
 - Do not add documentation files unless requested. Keep the existing setup guide
   accurate rather than adding parallel instructions.
 
-## Thea invariants
+## Thea separation
 
-- `.thea` is a special Stow package targeting `$HOME/.thea`, not `$HOME`.
-  Pre-create real `~/.thea` and `~/.thea/.pi` directories; deploy only identity,
-  settings, and `start.sh`. Keep all Thea-specific runtime code inside `.thea/`.
-- Thea is the orchestrator. Workers belong in their own repository/worktree
-  directories and separate workspaces, never in Thea's single-tab workspace.
-- Only Thea's project profile declares WhatsApp. Ordinary Pi settings must not.
-- Learned memory, skills, tasks, transcripts, and credentials are private runtime
-  data, not dotfiles. Never add them to Git or overwrite them on reinstall.
-- Shared Herdr is not owned by Thea's monitor. Never stop/restart it to recover
-  Pi, answer worker approvals automatically, or close unrelated panes.
-- Service activation and the live WhatsApp handoff require separate explicit
-  approval. Tests use fake service/API commands and temporary homes only.
+Thea is maintained in the private `bensincs/thea-agent` repository and cloned
+separately. Do not add her service, identity, memory, or runtime data here.
+Ordinary Pi settings must not declare WhatsApp; Thea's project profile owns it.
 
 ## Checks
 
@@ -58,14 +46,14 @@ python3.11 -m unittest discover -s tests -v
 ```
 
 Tests use temporary home directories, real Stow, and mocked package-manager,
-account-CLI, and Neovim commands. They do not provision a machine. Zsh, Stow,
-and flock must be installed to run their tests rather than skip them.
+account-CLI, and Neovim commands. They do not provision a machine. Zsh and Stow
+must be installed to run their tests rather than skip them.
 
 For syntax-only checks:
 
 ```bash
 bash -n bootstrap.sh
-for file in .thea/start.sh zsh/.config/zsh/*.sh; do bash -n "$file"; done
+for file in zsh/.config/zsh/*.sh; do bash -n "$file"; done
 zsh -n zsh/.zshenv
 zsh -n zsh/.zshrc
 ```

@@ -6,11 +6,5 @@ __pycache__/
 .zshenv.local
 .zshrc.local
 
-# Thea source is seed configuration only, even if Pi is launched here by mistake.
-.thea/*
-!.thea/AGENTS.md
-!.thea/start.sh
-!.thea/.stow-local-ignore
-!.thea/.pi/
-.thea/.pi/*
-!.thea/.pi/settings.json
+# Legacy Thea workspaces may contain private state; Thea now has its own repo.
+.thea/

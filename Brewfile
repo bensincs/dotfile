@@ -5,6 +5,7 @@ brew "git-delta"
 brew "gh"
 brew "wget"
 brew "mkcert"
+brew "age" # Encrypted private backups (including Thea runtime state)
 
 # --- Git review ---
 brew "diffnav" # Live diff viewer with a file tree
@@ -12,7 +13,7 @@ brew "lazygit"
 
 # --- Shell / UX ---
 brew "zsh" if OS.linux? # macOS already includes Zsh
-brew "flock" if OS.linux? # Thea process/supervisor singleton locks
+brew "flock" if OS.linux? # Process/supervisor singleton locks
 brew "starship"
 brew "stow"
 brew "direnv"

@@ -1,3 +1,0 @@
-# Deploy only identity, settings, and service code, never growing private state.
-# Patterns containing / match package-relative paths, with or without a leading /.
-^(?!/?(?:AGENTS\.md|start\.sh|\.pi(?:/settings\.json)?)$)
