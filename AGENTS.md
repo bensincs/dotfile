@@ -7,9 +7,12 @@ packages; GNU Stow links configuration into `$HOME`.
 
 - `README.md`: installation, manual account/runtime setup, recovery, workflows.
 - `Brewfile`: package dependencies and platform-specific applications.
-- `bootstrap.sh`: installation order and the authoritative `STOW_PACKAGES` list.
+- `bootstrap.sh`: installation order, `STOW_PACKAGES`, and the separately targeted
+  `.thea` profile package.
 - Tool directories: Stow packages mirroring their home-directory layout.
-- `tests/test_setup.py`: isolated setup regression tests.
+- `.thea/`: Thea's two seed files, stowed into a real `~/.thea` directory.
+- `start-thea.sh`, `scripts/thea.sh`: opt-in Linux service wiring and supervision.
+- `tests/`: isolated setup/service regression tests with fake Herdr, Pi, and systemd.
 
 Packages: bottom, copilot, diffnav, git, herdr, kitty, nvim, pi, starship, tmux,
 zsh. Kitty is macOS-only. Pi's Cloudflare skills are vendored reference material
@@ -31,6 +34,20 @@ setup behavior, dependencies, platform support, or manual steps change.
 - Do not add documentation files unless requested. Keep the existing setup guide
   accurate rather than adding parallel instructions.
 
+## Thea invariants
+
+- `.thea` is a special Stow package targeting `$HOME/.thea`, not `$HOME`.
+  Pre-create real `~/.thea` and `~/.thea/.pi` directories; stow only the seed files.
+- Thea is the orchestrator. Workers belong in their own repository/worktree
+  directories and separate workspaces, never in Thea's single-tab workspace.
+- Only Thea's project profile declares WhatsApp. Ordinary Pi settings must not.
+- Learned memory, skills, tasks, transcripts, and credentials are private runtime
+  data, not dotfiles. Never add them to Git or overwrite them on reinstall.
+- Shared Herdr is not owned by Thea's monitor. Never stop/restart it to recover
+  Pi, answer worker approvals automatically, or close unrelated panes.
+- Service activation and the live WhatsApp handoff require separate explicit
+  approval. Tests use fake service/API commands and temporary homes only.
+
 ## Checks
 
 Run from the repository root with Python 3.11+ (included in the Brewfile):
@@ -40,14 +57,14 @@ python3.11 -m unittest discover -s tests -v
 ```
 
 Tests use temporary home directories, real Stow, and mocked package-manager,
-account-CLI, and Neovim commands. They do not provision a machine. Zsh and Stow
-must be installed to run their tests rather than skip them.
+account-CLI, and Neovim commands. They do not provision a machine. Zsh, Stow,
+and flock must be installed to run their tests rather than skip them.
 
 For syntax-only checks:
 
 ```bash
 bash -n bootstrap.sh
-for file in zsh/.config/zsh/*.sh; do bash -n "$file"; done
+for file in start-thea.sh scripts/*.sh zsh/.config/zsh/*.sh; do bash -n "$file"; done
 zsh -n zsh/.zshenv
 zsh -n zsh/.zshrc
 ```

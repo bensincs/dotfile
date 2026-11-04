@@ -1,0 +1,3 @@
+# Only deploy the two seed files, even if private state grows in this source directory.
+# Patterns containing / match package-relative paths, with or without a leading /.
+^(?!/?(?:AGENTS\.md|\.pi(?:/settings\.json)?)$)

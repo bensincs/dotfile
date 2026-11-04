@@ -63,7 +63,7 @@ cd "$DOTFILES_DIR"
 
 # Directories apps write their own state into must be real, not stow-folded symlinks into this
 # repo (on a fresh machine stow would otherwise link the whole directory).
-mkdir -p "$HOME/.config/herdr" "$HOME/.pi/agent" "$HOME/.copilot"
+mkdir -p "$HOME/.config/herdr" "$HOME/.pi/agent" "$HOME/.copilot" "$HOME/.thea/.pi"
 
 STOW_PACKAGES=(
   bottom
@@ -81,7 +81,8 @@ STOW_PACKAGES=(
 
 # Check the complete set before linking anything. Never adopt or overwrite
 # existing dotfiles automatically; the README explains how to back them up.
-if ! stow --dir="$DOTFILES_DIR" --target="$HOME" --simulate "${STOW_PACKAGES[@]}"; then
+if ! stow --dir="$DOTFILES_DIR" --target="$HOME" --simulate "${STOW_PACKAGES[@]}" || \
+   ! stow --dir="$DOTFILES_DIR" --target="$HOME/.thea" --simulate .thea; then
   echo "⚠ Dotfile conflicts found. No packages were stowed." >&2
   echo "  Back up the conflicting paths outside this repo, then rerun bootstrap.sh." >&2
   echo "  See README.md: Existing dotfiles and recovery." >&2
@@ -89,6 +90,8 @@ if ! stow --dir="$DOTFILES_DIR" --target="$HOME" --simulate "${STOW_PACKAGES[@]}
 fi
 
 stow --dir="$DOTFILES_DIR" --target="$HOME" "${STOW_PACKAGES[@]}"
+# .thea is deliberately rooted at ~/.thea, not directly at $HOME.
+stow --dir="$DOTFILES_DIR" --target="$HOME/.thea" .thea
 
 # ----------------------------
 # 5. Linux-only tools Homebrew doesn't provide there

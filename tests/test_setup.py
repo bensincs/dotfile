@@ -40,7 +40,8 @@ class SetupTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_shell_syntax(self):
-        for path in [ROOT / "bootstrap.sh", *ROOT.glob("zsh/.config/zsh/*.sh")]:
+        for path in [ROOT / "bootstrap.sh", ROOT / "start-thea.sh",
+                     *ROOT.glob("scripts/*.sh"), *ROOT.glob("zsh/.config/zsh/*.sh")]:
             with self.subTest(path=path):
                 self.assert_success(self.run_command(["bash", "-n", str(path)]))
         if ZSH:
@@ -56,7 +57,7 @@ class SetupTests(unittest.TestCase):
                     self.assert_success(self.run_command(["bash", "-n"], input=block))
 
     def test_configuration_formats(self):
-        for package in ("pi", "copilot", "nvim", "herdr", "starship", "bottom"):
+        for package in ("pi", ".thea", "copilot", "nvim", "herdr", "starship", "bottom"):
             for path in (ROOT / package).rglob("*"):
                 if "skills" in path.parts or path.suffix not in (".json", ".toml"):
                     continue
@@ -173,13 +174,29 @@ if alias code >/dev/null 2>&1; then exit 1; fi
                     self.assert_success(result)
                 self.assertEqual((home / ".gitconfig").resolve(), ROOT / "git/.gitconfig")
                 self.assertEqual((home / ".zshrc").resolve(), ROOT / "zsh/.zshrc")
-                for relative in (".config/herdr", ".pi/agent", ".copilot"):
+                self.assertEqual((home / ".thea/AGENTS.md").resolve(), ROOT / ".thea/AGENTS.md")
+                self.assertEqual((home / ".thea/.pi/settings.json").resolve(), ROOT / ".thea/.pi/settings.json")
+                for relative in (".config/herdr", ".pi/agent", ".copilot", ".thea", ".thea/.pi"):
                     self.assertTrue((home / relative).is_dir())
                     self.assertFalse((home / relative).is_symlink())
                 self.assertEqual((home / ".config/kitty").exists(), platform == "Darwin")
                 for path in home.rglob("*"):
                     if path.is_symlink():
                         self.assertTrue(path.exists(), str(path))
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_thea_conflict_prevents_all_normal_package_links(self):
+        profile = self.home / ".thea/.pi"
+        profile.mkdir(parents=True)
+        settings = profile / "settings.json"
+        settings.write_text('{"existing": true}\n')
+        self.mock_bootstrap_tools("Linux")
+        result = self.run_command(["bash", str(ROOT / "bootstrap.sh")])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("No packages were stowed", result.stderr)
+        self.assertFalse((self.home / ".gitconfig").is_symlink())
+        self.assertFalse((self.home / ".thea/AGENTS.md").is_symlink())
+        self.assertEqual(settings.read_text(), '{"existing": true}\n')
 
     @unittest.skipUnless(STOW, "requires GNU Stow")
     def test_bootstrap_conflicts_do_not_partially_stow(self):

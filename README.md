@@ -49,8 +49,9 @@ It performs these steps:
 
 1. Find or install Homebrew and load its environment.
 2. Trust the Brewfile's third-party taps and install/update its dependencies.
-3. Create real directories for Herdr, Pi, and Copilot runtime state.
-4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
+3. Create real directories for Herdr, Pi, Copilot, and Thea runtime state.
+4. Check **all** Stow packages for conflicts, then link them to `$HOME`; the special
+   `.thea` package targets `$HOME/.thea` instead.
 5. On Linux, install Azure CLI with `uv tool` if `az` is missing.
 6. Restore the Neovim plugin versions from `lazy-lock.json`.
 
@@ -183,9 +184,10 @@ These are manual, per-machine steps. Do not copy their tokens into the repo.
   depend on the account. Use `/model` if a configured model is unavailable.
 - **Work IQ:** complete Microsoft's first-run EULA/consent and sign-in flow; see
   <https://github.com/microsoft/work-iq>. Its MCP entry is in Pi's `mcp.json`.
-- **WhatsApp:** Pi installs the configured `pi-whatsapp` package. Follow its setup
-  and device-pairing instructions at <https://github.com/bensincs/pi-whatsapp>.
-  Pairing state and private settings are not stored here.
+- **WhatsApp:** only Thea's profile declares `pi-whatsapp`; ordinary Pi sessions
+  do not load it. See the controlled setup/cutover below and
+  <https://github.com/bensincs/pi-whatsapp>. Existing Pi processes keep already-loaded
+  extensions until they reload or exit; do not reload this live connection mid-cutover.
 
 Copilot CLI and Claude Code are installed as macOS casks. On Linux they are
 optional, separate installs; Pi is installed on both platforms.
@@ -193,6 +195,166 @@ optional, separate installs; Pi is installed on both platforms.
 Restore SSH keys, signing keys, Kubernetes credentials, notes, and other personal
 files from their separate secure backups as needed. This repo does not provision
 a Docker daemon, cloud resources, VS Code extensions, or per-project `.envrc` files.
+
+## Thea: persistent Herdr orchestrator (Linux)
+
+Thea is a Pi agent with a durable home, inspired by Hermes's persistent memory and
+learned skills. Her main job is to coordinate other agents in the **shared** Herdr
+server. Workers use their own repository/worktree directories; Thea has no projects
+directory and does not become a second checkout manager.
+
+The `.thea` package deploys only `AGENTS.md` and `.pi/settings.json`.
+Its `.stow-local-ignore` allowlist prevents deploying any runtime data accidentally
+created in the source directory.
+The live `~/.thea` and `~/.thea/.pi` must be **real directories**, not folded Stow
+links into this checkout. Only the two seed files are symlinked:
+
+```text
+~/.thea/
+├── AGENTS.md              # stowed identity and operating rules
+├── .pi/
+│   ├── settings.json      # stowed profile; only this profile loads WhatsApp
+│   └── skills/            # learned, locally owned orchestration skills
+├── memory/
+│   ├── MEMORY.md          # concise durable knowledge and note index
+│   └── USER.md            # explicit user preferences and corrections
+├── tasks/                 # request, worker, status, evidence, next action
+├── sessions/              # Pi transcripts and compaction history
+└── state/
+    ├── env                # private service environment, mode 0600
+    └── whatsapp/          # pairing, inbox, reminders, connection lock
+```
+
+Identity/configuration belongs in dotfiles. Learned knowledge, transcripts,
+credentials, and live task state do not: back up the real home separately using
+private, encrypted storage. Reinstalling must not overwrite those files. Gitignore
+also protects runtime files if someone accidentally launches Pi in the source
+`.thea` directory.
+
+Thea uses the normal Pi account credentials, MCP configuration, and shared skills.
+Her project-local profile adds her identity, learned skills, model preferences, and
+WhatsApp package. It is profile isolation, not an operating-system sandbox.
+
+### Learning and orchestration behavior
+
+The instructions tell Thea to read memory and reconcile unfinished tasks at the
+start of substantive work. After meaningful work she records verified knowledge
+and corrections, updates the task ledger, and saves proven workflows as Agent
+Skills under `.pi/skills/`. Newly created skills need `/reload` in that session.
+
+This first implementation is **prompt-driven curation**, not Hermes's separate
+automatic memory engine, conversation-search database, or training loop. Pi's
+compaction preserves transcripts but does not itself write durable memory. Thea
+must save important state before requesting compaction; older transcripts remain
+available for targeted recall.
+
+Routine delegation is permitted within Ben's requested task. Interrupting
+unrelated agents, destructive operations, publishing, deployments, and granting
+other agents broader permissions still need appropriate approval.
+
+### Prepare without activating
+
+Requires Linux, a working systemd user manager, Herdr, Pi, jq, flock, and Python
+3.11. The Brewfile supplies CLI dependencies; systemd comes from the distribution.
+After bootstrap, install the unit without enabling or starting it:
+
+```bash
+./start-thea.sh install
+nvim "$HOME/.thea/state/env"
+```
+
+Set `WHATSAPP_ALLOW` to the allowed phone number(s), digits with country code,
+comma-separated. `TZ=UTC` and a Thea prefix are seeded; change them if desired.
+Any additional environment-only credentials belong in this private file, not in
+the unit or the repository. The service does not depend on an interactive shell
+exporting them.
+
+If stowing only this profile rather than running the full bootstrap:
+
+```bash
+mkdir -p "$HOME/.thea/.pi"
+stow --dir="$PWD" --target="$HOME/.thea" --simulate .thea
+stow --dir="$PWD" --target="$HOME/.thea" .thea
+```
+
+The installer never overwrites an unmanaged `thea.service`. It references this
+checkout's absolute script path; rerun `install` after moving the checkout.
+
+### Controlled WhatsApp handoff
+
+Do not perform this from the phone expecting the old connection to remain active.
+Use a terminal. No script automatically disconnects the current WhatsApp owner or
+copies its credentials during bootstrap/install.
+
+For the existing linked device:
+
+1. Finish any live work and use `/whatsapp disconnect` in the old Pi. **Do not use
+   `/whatsapp logout`**, which unlinks the device.
+2. Copy the disconnected state into Thea's home. The command refuses live PID
+   locks, an active Thea service, or a nonempty destination. It leaves the original
+   directory intact as a recovery copy and omits the old PID lock.
+3. Start Thea only when the handoff is intended.
+
+```bash
+./start-thea.sh migrate-whatsapp
+# If the old plugin used PI_WHATSAPP_DIR, pass that old directory explicitly:
+# ./start-thea.sh migrate-whatsapp /path/to/old/whatsapp
+./start-thea.sh start
+```
+
+For a new device/account, run `./start-thea.sh setup` instead of migration. It opens
+Pi interactively in Thea's home: complete `/login` if needed and scan the WhatsApp
+QR code. Exit that setup Pi before starting the service.
+
+`start` installs/updates the unit and runs `systemctl --user enable --now
+thea.service`. It refuses an active legacy WhatsApp lock or missing local pairing
+state. Only Thea's launcher enables WhatsApp and selects her private state directory.
+Do not reconnect the old Pi after cutover. Stop Thea before using a recovery copy.
+
+### Supervision and operation
+
+The service finds or creates workspace **Thea**, containing one tab **Thea** and
+one Pi pane named **thea**, in the default/shared Herdr server. It discovers live
+IDs on each pass rather than trusting saved pane IDs. Pi resumes the most recent
+session from Thea's home. The supervisor uses the CLI rather than typing prompts
+into worker panes.
+
+It never stops/restarts a running shared server. If no server is running, it
+starts one in a **separate** transient `herdr-server` user service, so stopping
+Thea does not kill workers. That separate unit can recover its own crashed server.
+An incompatible/unreachable server is not permission to replace it.
+
+Live Pi states (`idle`, `working`, `blocked`, `done`, `unknown`) are not failures.
+Only a validated, available shell in Thea's pane is relaunched, with retries backed
+off to at most once every five minutes. Ambiguous layouts, extra tabs/panes, an
+unrelated occupant, or a conflicting agent name are left alone and logged. Do not
+put workers in Thea's workspace.
+
+```bash
+./start-thea.sh status
+./start-thea.sh logs
+./start-thea.sh attach   # open the shared Herdr UI; select workspace Thea
+./start-thea.sh stop     # disable service and close only its validated Pi pane
+```
+
+Stopping Thea does not stop the shared server, workers, or remove learned data.
+Status/process liveness is not proof of WhatsApp/provider readiness: inspect the
+Pi footer and test a message after setup, reconnection, and any server restore.
+Authentication/approval prompts are not automatically answered or restarted away.
+
+To run after logout and start at boot without an interactive login, explicitly
+enable user lingering where the machine's policy permits:
+
+```bash
+sudo loginctl enable-linger "$USER"
+loginctl show-user "$USER" -p Linger
+```
+
+For a consistent private backup, stop Thea first and back up `~/.thea`; retain the
+separate Pi provider credentials securely as well. A dotfiles clone alone cannot
+restore learned knowledge or account state. The repository tests use fake Herdr,
+Pi, and systemd commands; live reboot/reconnection acceptance testing is a separate
+step at activation.
 
 ## Configuration layout
 
@@ -202,6 +364,8 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | Path | Purpose |
 | --- | --- |
 | `bootstrap.sh` | Installation order and active Stow packages |
+| `.thea/` | Seed identity and project Pi settings, stowed into `~/.thea` |
+| `start-thea.sh`, `scripts/thea.sh` | Opt-in Linux service, setup, and supervision |
 | `Brewfile` | Homebrew, macOS cask, and global npm dependencies |
 | `bottom/` | Compact graph layout (`btm -C ~/.config/bottom/graphs.toml`) |
 | `copilot/` | Copilot CLI preferences |
@@ -216,7 +380,8 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | `zsh/` | Shell startup files and helper scripts |
 | `tests/` | Isolated setup regression checks |
 
-Bootstrap stows every listed package except Kitty on Linux. Pi's Cloudflare skills
+Bootstrap stows every tool package except Kitty on Linux, plus the separately
+targeted `.thea` package. It does not install or activate Thea's service. Pi's Cloudflare skills
 are vendored reference material with their own `LICENSE`; do not edit them as part
 of routine machine setup. Application-written settings are symlinked too: inspect
 `git diff` after using tools that update their own configuration.

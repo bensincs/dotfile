@@ -1,0 +1,12 @@
+{
+  "defaultProvider": "github-copilot",
+  "defaultModel": "gpt-6.1-sol",
+  "defaultThinkingLevel": "high",
+  "defaultTools": [
+    "+codemode"
+  ],
+  "sessionDir": "sessions",
+  "packages": [
+    "https://github.com/bensincs/pi-whatsapp"
+  ]
+}

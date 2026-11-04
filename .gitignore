@@ -5,3 +5,11 @@ __pycache__/
 # Machine-local shell overrides may contain credentials.
 .zshenv.local
 .zshrc.local
+
+# Thea source is seed configuration only, even if Pi is launched here by mistake.
+.thea/*
+!.thea/AGENTS.md
+!.thea/.stow-local-ignore
+!.thea/.pi/
+.thea/.pi/*
+!.thea/.pi/settings.json
