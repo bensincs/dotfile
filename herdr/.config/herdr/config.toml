@@ -75,7 +75,7 @@ headless_rows = 45
 
 # ---- Agent session restore ----
 # Restart supported agent panes in their native sessions after a server
-# restart (Claude Code, Codex, OpenCode, Copilot CLI, etc.).
+# restart (Claude Code, Codex, Copilot CLI, etc.).
 [session]
 resume_agents_on_restore = true
 
@@ -86,13 +86,6 @@ prefix = "ctrl+a"
 
 # Unbind next-tab so prefix+n can open the notes pad.
 next_tab = ""
-
-# Ctrl+A, then I: open OpenCode and diffwatch for the focused pane's repo.
-# Detached commands receive HERDR_ACTIVE_* rather than pane-local variables.
-[[keys.command]]
-key = "prefix+i"
-type = "shell"
-command = 'HERDR_ENV=1 HERDR_PANE_ID="$HERDR_ACTIVE_PANE_ID" bash "$HOME/.config/zsh/aicode.sh"'
 
 # Ctrl+A, then N: open the notes pad as a popup over the current pane.
 # Quit the pad with Ctrl+Q to close the popup.

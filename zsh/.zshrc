@@ -13,6 +13,7 @@ if command -v starship >/dev/null 2>&1; then
 fi
 
 # ---- History ----
+HISTFILE="$HOME/.zsh_history"
 HISTSIZE=100000
 SAVEHIST=100000
 setopt share_history
@@ -77,11 +78,6 @@ diffwatch() {
   bash "$HOME/.config/zsh/diffwatch.sh" "$@"
 }
 
-# Open a side-by-side OpenCode and diffwatch tab in herdr.
-aicode() {
-  bash "$HOME/.config/zsh/aicode.sh" "$@"
-}
-
 # tmux - attach/switch to session defined by TMUX_SESSION env var (set via direnv) or default to 'main'
 tm() {
   local session="${TMUX_SESSION:-main}"
@@ -112,7 +108,9 @@ alias tmd="tmux detach"
 alias k="kubectl"
 
 # misc
-alias code="code-insiders"
+if command -v code-insiders >/dev/null 2>&1; then
+  alias code="code-insiders"
+fi
 alias c="clear"
 
 # neovim
@@ -120,11 +118,6 @@ if command -v nvim >/dev/null 2>&1; then
   alias vim="nvim"
   alias vi="nvim"
 fi
-
-# go function - runs opencode with terminal-executor agent (continues last session)
-oc() {
-  opencode run --continue --model github-copilot/claude-sonnet-4.5 --agent terminal-executor "$*"
-}
 
 # system monitoring
 if command -v btm >/dev/null 2>&1; then
@@ -159,4 +152,6 @@ fi
 [[ -d /Applications/Docker.app ]] && export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
 # Machine-local, untracked overrides and private values (e.g. WHATSAPP_ALLOW)
-[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+if [[ -f "$HOME/.zshrc.local" ]]; then
+  source "$HOME/.zshrc.local"
+fi

@@ -6,3 +6,4 @@
 
 # Local machine env / secrets (never committed)
 .zshenv.local
+.zshrc.local

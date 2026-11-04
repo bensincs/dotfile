@@ -1,6 +1,7 @@
 [user]
 	name = Ben Sinclair
 	email = ben@sincs.co.uk
+# Resolve GitHub CLI through PATH on macOS and Linux.
 [credential "https://github.com"]
 	helper = 
 	helper = !gh auth git-credential
@@ -17,11 +18,9 @@
 [pull]
 	rebase = false
 [core]
-	editor = code --wait
+	editor = nvim
 	pager = delta
 	excludesfile = ~/.gitignore_global
-[alias]
-	ai = !opencode run /commit
 # Match Kitty's Solarized Dark palette in Git diffs and diffnav.
 [delta]
 	dark = true

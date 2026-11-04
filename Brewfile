@@ -5,12 +5,15 @@ brew "git-delta"
 brew "gh"
 brew "wget"
 brew "mkcert"
+brew "age" # Encrypted private backups
 
 # --- Git review ---
 brew "diffnav" # Live diff viewer with a file tree
 brew "lazygit"
 
 # --- Shell / UX ---
+brew "zsh" if OS.linux? # macOS already includes Zsh
+brew "flock" if OS.linux? # Process/supervisor singleton locks
 brew "starship"
 brew "stow"
 brew "direnv"
@@ -70,7 +73,7 @@ brew "tmux"
 # --- Agent multiplexer ---
 brew "herdr"
 
-# --- Pi Coding Agent ---
+# --- Coding agents ---
 brew "pi-coding-agent"
 
 # --- Synergy ---
@@ -81,15 +84,15 @@ end
 
 
 # --- Microsoft Work IQ CLI ---
-# No Homebrew formula; brew bundle installs it via npm (fnm-managed Node on macOS,
-# Homebrew's node on Linux).
-brew "node" if OS.linux?
+# Homebrew Node runs global CLI tools; fnm manages project-specific versions.
+brew "node"
 npm "@microsoft/workiq"
 
 # --- macOS only: casks and desktop bits ---
 if OS.mac?
   cask "copilot-cli"                    # GitHub Copilot CLI
   cask "claude-code"                    # Claude Code
+  cask "visual-studio-code@insiders"     # code-insiders CLI and GUI editor
   brew "terminal-notifier"              # herdr [ui.toast] delivery = "system"
   cask "kitty"                          # terminal
   cask "font-jetbrains-mono-nerd-font"

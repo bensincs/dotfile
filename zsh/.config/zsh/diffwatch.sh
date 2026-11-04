@@ -17,7 +17,7 @@ if ! command -v diffnav >/dev/null 2>&1; then
 fi
 
 repo_root=$(git rev-parse --show-toplevel)
-# aicode pins the commit before starting either pane; standalone uses HEAD.
+# Default to the commit at launch; allow an explicit baseline when needed.
 baseline=HEAD
 if [[ "${1:-}" == "--baseline" ]]; then
   baseline=${2:?--baseline requires a commit}
