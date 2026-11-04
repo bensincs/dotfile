@@ -5,7 +5,7 @@ brew "git-delta"
 brew "gh"
 brew "wget"
 brew "mkcert"
-brew "age" # Encrypted private backups (including Thea runtime state)
+brew "age" # Encrypted private backups
 
 # --- Git review ---
 brew "diffnav" # Live diff viewer with a file tree

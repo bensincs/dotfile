@@ -183,10 +183,6 @@ These are manual, per-machine steps. Do not copy their tokens into the repo.
   depend on the account. Use `/model` if a configured model is unavailable.
 - **Work IQ:** complete Microsoft's first-run EULA/consent and sign-in flow; see
   <https://github.com/microsoft/work-iq>. Its MCP entry is in Pi's `mcp.json`.
-- **WhatsApp:** only Thea's profile declares `pi-whatsapp`; ordinary Pi sessions
-  do not load it. See the controlled setup/cutover below and
-  <https://github.com/bensincs/pi-whatsapp>. Existing Pi processes keep already-loaded
-  extensions until they reload or exit; do not reload this live connection mid-cutover.
 
 Copilot CLI and Claude Code are installed as macOS casks. On Linux they are
 optional, separate installs; Pi is installed on both platforms.
@@ -194,31 +190,6 @@ optional, separate installs; Pi is installed on both platforms.
 Restore SSH keys, signing keys, Kubernetes credentials, notes, and other personal
 files from their separate secure backups as needed. This repo does not provision
 a Docker daemon, cloud resources, VS Code extensions, or per-project `.envrc` files.
-
-## Thea: separate private orchestrator
-
-Thea lives in [bensincs/thea-agent](https://github.com/bensincs/thea-agent), a private
-repository. She is an application with a growing home, not a Stow package.
-Dotfiles provides machine dependencies but does not deploy or activate Thea.
-
-After GitHub authentication, clone and prepare her separately:
-
-```bash
-git clone https://github.com/bensincs/thea-agent.git "$HOME/thea"
-cd "$HOME/thea"
-./start.sh install
-```
-
-This installs the unit without starting it. Follow that repository's README for
-private environment setup, controlled WhatsApp handoff, activation, diagnostics,
-and backup/restore. Do not disconnect the current WhatsApp session during an
-unattended migration. Ordinary Pi settings here deliberately omit the WhatsApp
-package; only Thea's project profile declares it.
-
-Thea's reviewed memory and skills may be versioned in her private repo. Credentials,
-raw conversations, inbox attachments, and runtime state must never enter Git;
-those require a separate encrypted backup. No Thea service or private state is
-installed by this bootstrap.
 
 ## Configuration layout
 

@@ -5,6 +5,3 @@ __pycache__/
 # Machine-local shell overrides may contain credentials.
 .zshenv.local
 .zshrc.local
-
-# Legacy Thea workspaces may contain private state; Thea now has its own repo.
-.thea/

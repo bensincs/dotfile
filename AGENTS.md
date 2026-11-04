@@ -31,12 +31,6 @@ setup behavior, dependencies, platform support, or manual steps change.
 - Do not add documentation files unless requested. Keep the existing setup guide
   accurate rather than adding parallel instructions.
 
-## Thea separation
-
-Thea is maintained in the private `bensincs/thea-agent` repository and cloned
-separately. Do not add her service, identity, memory, or runtime data here.
-Ordinary Pi settings must not declare WhatsApp; Thea's project profile owns it.
-
 ## Checks
 
 Run from the repository root with Python 3.11+ (included in the Brewfile):
