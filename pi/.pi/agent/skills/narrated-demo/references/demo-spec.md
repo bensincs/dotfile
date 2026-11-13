@@ -110,6 +110,144 @@ All selectors match the first visible element.
 | `d.newPage()` | A separate, unrecorded browser session, e.g. for another person accepting an invite. Close it with `page.context().close()`. |
 | `d.page`, `d.context` | Raw Playwright objects for anything else |
 
+## Code walkthroughs (VS Code)
+
+Code is another browser scene, not a separate renderer. Use real VS Code in the
+browser, backed by the local checkout. Native VS Code desktop capture is not
+supported. Do not silently replace it with an editor-styled HTML mockup.
+
+### Start a disposable local editor
+
+Reuse an installed VS Code CLI with `serve-web` support. Check `serve-web --help`
+first. On macOS, the bundled CLI is commonly one of:
+
+- `/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code-tunnel`
+- `/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-tunnel-insiders`
+
+On Linux, look for `code`, `code-insiders` or `code-tunnel` on PATH. If none supports
+`serve-web`, ask before installing anything. An existing `code-server` also works
+as a browser editor, but its launch flags differ; check its help rather than
+passing the flags below.
+
+Set `VSCODE_CLI` to the discovered executable. From the project root:
+
+```bash
+repo="$PWD"
+work="$(mktemp -d "${TMPDIR:-/tmp}/narrated-code.XXXXXX")"
+"$VSCODE_CLI" --cli-data-dir "$work/cli" serve-web \
+  --host 127.0.0.1 --port 8766 --without-connection-token \
+  --accept-server-license-terms --disable-telemetry \
+  --server-data-dir "$work/server" --default-folder "$repo" \
+  > "$work/server.log" 2>&1 < /dev/null &
+server_pid=$!
+printf '%s\n' "$server_pid" > "$work/server.pid"
+```
+
+Starting the server may download web assets and requires accepting Microsoft's
+server license. Use a free port; do not kill an existing listener. No token is
+acceptable here only because the listener is loopback-only and short-lived.
+Never bind this unauthenticated server to `0.0.0.0` or open a public tunnel.
+The server/profile is disposable; do not reuse the user's normal editor profile.
+An HTTP 202 can mean assets are still downloading: wait for `.monaco-workbench`,
+not just the first successful HTTP response. Keep Restricted Mode for read-only
+tours; workspace trust is not needed to read source.
+
+Keep the PID and temporary directory. When recording finishes, stop only that
+process (`kill "$server_pid"` in the same shell). Do not terminate other editors
+or remove the user's normal VS Code settings.
+
+### Use the bundled helpers
+
+Import `scripts/lib/code.mjs` using the skill's resolved absolute path. It exports:
+
+| Helper | Use |
+|---|---|
+| `prepareCode(d, { url?, file?, line? })` | Off-camera setup: optionally navigate, apply readable settings, enter Zen Mode and open a file. **Replaces settings in the disposable profile.** |
+| `openCodeFile(d, file, line = 1)` | Open a repository-relative path using Quick Open, then go to a line. |
+| `highlightCode(d, line, endLine = line)` | Select a short range through its line-number gutter, including wrapped lines. |
+
+Use the capture browser's `d.page`, not a second desktop window or unrecorded page.
+Helpers choose Command on macOS and Control on Linux. `prepareCode` uses clipboard
+permissions already granted by the recorder. It clicks the actual Monaco editor
+before pasting settings: focusing a hidden textarea can miss the editor or target
+Chat, and `keyboard.insertText` can fail with Monaco's EditContext. Pasting also
+avoids auto-indent and auto-closing braces corrupting a full JSON document.
+
+Example for this repository's `bootstrap.sh`; read the current file and adapt the
+line numbers before reusing it:
+
+```js
+import { prepareCode, highlightCode } from '/absolute/path/to/narrated-demo/scripts/lib/code.mjs';
+
+const editorUrl = `http://127.0.0.1:8766/?${new URLSearchParams({ folder: process.cwd() })}`;
+export default {
+  name: 'bootstrap-code',
+  url: editorUrl,
+  viewport: { width: 1440, height: 810 },
+  colorScheme: 'dark',
+  frame: { window: true, url: false, padding: 24 },
+  zoom: false,
+  fps: 15,
+  pronounce: { 'bootstrap.sh': 'bootstrap dot S H' },
+  async setup(d) {
+    await prepareCode(d, { file: 'bootstrap.sh', line: 87 });
+  },
+  steps: [
+    { say: 'This setup script checks for conflicts before linking configuration.' },
+    { say: 'Stow previews the complete package set. A conflict stops the script.',
+      async do(d) { await highlightCode(d, 84, 89); } },
+    { say: 'Only a successful preview reaches the real linking command.',
+      async do(d) { await highlightCode(d, 91); } },
+  ],
+};
+```
+
+### Mix app, code and chalkboard sections
+
+Keep the same spec, voice and browser context. Prepare the editor in `setup`,
+then return to the app with `d.goto(appUrl)` before recording. Use off-camera
+`cut` steps for switching, and normal narrated steps for line highlighting:
+
+```js
+// Inside steps, after an app chapter. editorUrl and appUrl are absolute URLs;
+// import openCodeFile as well as prepareCode and highlightCode from code.mjs.
+{ chapter: 'code', cut: true, async do(d) {
+    await d.goto(editorUrl);
+    await openCodeFile(d, 'src/handler.ts', 40);
+} },
+{ say: 'This guard rejects the request before any data is written.', zoom: false,
+  async do(d) { await highlightCode(d, 40, 45); } },
+{ chapter: 'result', cut: true, async do(d) { await d.goto(appUrl); } },
+{ say: 'Back in the app, the rejected request leaves the data unchanged.' },
+```
+
+Always navigate explicitly with `d.goto` when leaving the chalkboard; Quick Open
+cannot operate on the board page. Regular `draw` steps can explain an algorithm
+before returning to code. Chapter caching and replay work as for other app scenes.
+Source file contents are **not** fingerprinted by the renderer: after changing
+source or external demo inputs, use `--redo code` (the relevant chapter name) or
+`--fresh` to avoid showing cached, outdated code.
+
+### Code-specific storytelling and review
+
+- Explain one function, decision or data flow. Do not read every line aloud.
+- Read actual source first. Never invent behavior or show fake terminal output.
+- Default to reading, selecting and scrolling. Do not run scripts, install project
+  dependencies, edit source, save source, or trust a workspace just for a tour.
+  Editing/execution demonstrations need explicit permission and a disposable copy.
+- Start around 22 px text with the minimap, Chat and sidebars hidden. Keep file tabs
+  and line numbers. Disable automatic zoom for code steps so long lines stay in view.
+- Use repository-relative paths to avoid ambiguous Quick Open matches. Confirm the
+  intended tab and source are visible. Re-check line numbers after source changes.
+- Keep highlights short (roughly 5–12 lines) so both ends fit in the viewport. Split
+  longer explanations into separate steps; Monaco virtualizes off-screen lines.
+- Reserve the bottom for captions; do not explain code hidden underneath them.
+- For a smoke test, use 2–3 steps, 15–25 seconds and 15 fps. Render a draft, inspect
+  its contact sheet, then render the final if requested. Reuse the saved voice.
+- Review for readable text, matching highlights, uncut long lines and no private
+  paths, account prompts, secrets, environment files or terminal history. A still
+  editor producing few capture frames is normal, not itself a stutter.
+
 ## Chapters: change one part, re-render one part
 
 Mark where each section starts with `chapter: 'name'` on its first step. Split at a change of scene or of person, typically every 3–6 steps:

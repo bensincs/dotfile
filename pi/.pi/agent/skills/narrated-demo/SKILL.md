@@ -1,6 +1,6 @@
 ---
 name: narrated-demo
-description: Record polished narrated demo, walkthrough and explainer videos of web apps. Writes a step-by-step script, voices it with Azure AI Speech (narrator plus optional speaking personas), records the app with a camera that follows the action, draws animated chalkboard diagrams and chalk notes over the UI, and produces a 1080p MP4 with window frame, captions, name cards, title cards and transitions. Deploys the Azure Speech resource with Bicep on first use. Use when asked to record, narrate, voice over or caption a product demo, walkthrough, tutorial or explainer video.
+description: Record narrated demos and explainer videos of web apps and source code, including VS Code file walkthroughs and videos mixing app, code and chalkboard sections. Scripts the story, voices it with Azure AI Speech, records browser-based apps or VS Code with line highlighting, and produces a 1080p MP4 with captions, camera moves, diagrams, title cards and transitions. Deploys Azure Speech with Bicep on first use. Use when asked to record, narrate, voice over or caption a product demo, code tour, file explanation, tutorial or explainer video.
 compatibility: macOS or Linux with Node.js 18+, ffmpeg, the Azure CLI, and Google Chrome or Playwright Chromium.
 ---
 
@@ -33,11 +33,11 @@ node scripts/narrate.mjs --check
 
 ## 2. Write the demo spec
 
-Read `references/demo-spec.md`. If the video should explain a concept before or instead of showing the product, also read `references/chalkboard.md`: chalkboard steps draw diagrams stroke by stroke as the narrator speaks. Then:
-1. Confirm the app is running and the starting state is right (data seeded or empty, signed in or not).
+Read `references/demo-spec.md`. For source-code sections, follow its **Code walkthroughs (VS Code)** section and use `scripts/lib/code.mjs`; it covers the disposable server, editor setup, line highlighting and mixing code with app steps. The recorder captures browser-based VS Code, not the native desktop window. Do not substitute a VS Code-looking mockup without the user's agreement. If the video should explain a concept before or instead of showing the product, also read `references/chalkboard.md`: chalkboard steps draw diagrams stroke by stroke as the narrator speaks. Then:
+1. Confirm the app or local VS Code server is running and the starting state is right. For code, read the actual file first and identify the few lines that support each explanation. Do not execute or edit source files just to explain them.
 2. Walk the flow once yourself: read the page markup and pick stable selectors. Prefer ids, `name`, `href` and visible text.
 3. Shape the story with the "Story shape" section of the reference: a hook, an optional chalkboard explanation, one person doing one task, the result, and a takeaway.
-4. Write the spec next to the project's other demos (default `demos/<name>.demo.mjs`). Keep it to one task, about 6–14 steps and under 2 minutes.
+4. Write the spec next to the project's other demos (default `demos/<name>.demo.mjs`). Keep it to one task, about 6–14 steps and under 2 minutes. For a quick proof that recording works, use 2–3 steps and 15–25 seconds; reuse the saved voice and existing Speech resource.
 5. Choose what's worth adding; every feature is optional:
    - Title and end cards (`intro`, `outro`).
    - `transition: 'fade'`.
@@ -135,6 +135,7 @@ Work in this order: draft → read the review → fix the spec → draft again �
 
 Open `review.md` and every contact sheet. For each step:
 - **The screen matches the line.** The camera frames the action without cutting off what matters, notes point at the right things, and name cards and captions don't cover the action.
+- **For code,** the correct file and lines are visible, highlights match the narration, long lines are not clipped, and captions do not cover the code being explained. Readability matters more than showing the entire file. A low capture rate while the editor is still is normal.
 - **On the chalkboard,** nothing overlaps and nothing runs off the board or under the captions.
 - **Silent stretches:** lengthen the line to describe what's happening, split the step, or speed the action up (`d.type(..., { delay })`, fewer clicks).
 - **Stutters:** an occasional one is normal. Many in one step means the browser was busy; re-render, or simplify what's on screen.
@@ -148,6 +149,7 @@ When reporting, give:
 ## Notes
 
 - Recording state changes the app: a demo that creates data needs a fresh or reset environment to re-run.
+- Code walkthroughs stay read-only unless editing or execution was explicitly requested. Use a disposable VS Code profile, bind its server to loopback, and stop only the server process you started when finished. Do not expose private files, terminal history, credentials or account prompts.
 - Make sure the run doesn't reveal secrets: real emails, tokens, or invite links that still work in a shared environment.
 - Costs: a 60-second demo is about 1,000 characters, so even HD voices cost cents. Nothing runs while idle.
 - Remove everything with `az group delete -n rg-narrated-demo --subscription <id>`.
