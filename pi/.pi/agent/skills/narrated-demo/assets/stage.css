@@ -1,0 +1,37 @@
+/* Compositor: one 1920 x 1080 frame of the final video. narrate.mjs sets the variables. */
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+#bg { position: absolute; inset: 0; background: var(--bg); }
+#content { position: absolute; inset: 0; }
+#window { position: absolute; overflow: hidden; border-radius: 14px; background: #0f1412;
+  box-shadow: 0 50px 140px rgb(0 0 0 / 55%), 0 0 0 1px rgb(255 255 255 / 9%); }
+#window .bar { position: relative; height: 44px; display: flex; align-items: center; padding: 0 18px; background: #1b2220; }
+#window .dots { display: flex; gap: 8px; }
+#window .dots i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+#window .dots i:nth-child(2) { background: #febc2e; } #window .dots i:nth-child(3) { background: #28c840; }
+#url { position: absolute; left: 50%; transform: translateX(-50%); max-width: 62%; padding: 5px 16px; border-radius: 8px;
+  background: rgb(255 255 255 / 7%); color: #a9b3ad; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#view { position: relative; overflow: hidden; background: #fff; }
+#app { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+body.bare #window { border-radius: 0; box-shadow: none; } body.bare #window .bar { display: none; }
+body.no-url #url { display: none; }
+#board { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: contain; display: none; background: #0b0f0d; }
+body[data-scene=board] #board { display: block; } body[data-scene=board] #window { display: none; }
+body[data-scene=title] #content { display: none; }
+
+#titlecard { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 22px;
+  background: var(--bg); text-align: center; opacity: 0; padding: 0 160px; }
+#titlecard .rule { width: 72px; height: 6px; border-radius: 3px; background: var(--accent); }
+#titlecard h1 { margin: 0; color: #f3f5f4; font-size: 80px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; text-wrap: balance; }
+#titlecard p { margin: 0; color: #a9b3ad; font-size: 32px; line-height: 1.4; max-width: 1200px; text-wrap: balance; }
+
+#card { position: absolute; left: 56px; bottom: 150px; display: flex; align-items: center; gap: 18px; padding: 14px 26px 14px 14px;
+  border-radius: 18px; background: rgb(12 16 14 / 92%); border: 1px solid rgb(255 255 255 / 9%);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 45%); opacity: 0; }
+#c-avatar { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; color: #04201a; font-size: 24px; font-weight: 700; }
+#card strong { display: block; color: #fff; font-size: 26px; font-weight: 600; line-height: 1.25; }
+#card small { display: block; color: #a9b3ad; font-size: 19px; line-height: 1.3; }
+
+#caption { position: absolute; left: 0; right: 0; bottom: 44px; margin: 0 auto; width: fit-content; max-width: 1240px; padding: 12px 24px;
+  border-radius: 12px; background: rgb(10 14 12 / 86%); color: #fff; font-size: 27px; font-weight: 500; line-height: 1.4;
+  text-align: center; opacity: 0; text-wrap: balance; }

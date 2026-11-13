@@ -1,0 +1,19 @@
+/* Chalkboard page. Colours come from the theme as CSS variables. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--frame); }
+body { display: grid; place-items: center; }
+#surface {
+  position: relative; width: 100vw; height: 100vh;
+  background:
+    radial-gradient(ellipse 60% 45% at 30% 35%, var(--smudge), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 75% 70%, var(--smudge), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 50%, var(--board), var(--board-edge));
+  box-shadow: inset 0 0 0 10px var(--frame), inset 0 0 90px rgb(0 0 0 / 55%);
+}
+#board { position: absolute; inset: 0; width: 100%; height: 100%; }
+#chalk {
+  position: fixed; left: 0; top: 0; width: 54px; height: 15px; margin-top: -7px;
+  border-radius: 3px 6px 6px 3px; transform-origin: 0 50%; opacity: 0; pointer-events: none;
+  background: linear-gradient(180deg, #ffffff, #e9e6dc 55%, #cfcabe);
+  box-shadow: 2px 5px 9px rgb(0 0 0 / 45%); transition: opacity .25s; z-index: 10;
+}
+#ghosts { opacity: .05; filter: blur(2.5px); }
