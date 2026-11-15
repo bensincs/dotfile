@@ -38,11 +38,16 @@ export function spoken(text, pronounce = {}) {
   return out;
 }
 
-export async function synthesise(config, { text, voice, rate, intro }, file) {
+/** The SSML for one line. */
+export function ssmlFor({ text, voice, rate, intro }) {
   const lang = voice.split('-').slice(0, 2).join('-');
   const lead = intro ? `${escapeXml(intro)}<break time="600ms"/>` : '';
-  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${lang}">`
+  return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${lang}">`
     + `<voice name="${voice}">${prosody(rate, `${lead}${escapeXml(text)}`)}</voice></speak>`;
+}
+
+export async function synthesise(config, { text, voice, rate, intro }, file) {
+  const ssml = ssmlFor({ text, voice, rate, intro });
   const url = new URL('tts/cognitiveservices/v1', config.endpoint);
   // 401/403 right after setup usually means the role assignment is still propagating.
   for (let attempt = 1; ; attempt++) {

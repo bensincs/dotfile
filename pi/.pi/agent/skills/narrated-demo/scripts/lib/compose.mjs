@@ -1,7 +1,8 @@
 // Pass 2: composes the final video frame by frame.
-// For each output frame it picks the captured frame, applies the camera (eased zoom and pan), places
-// it in a window frame on a background, and adds captions, name cards, title cards and fades. The
-// stage page renders each state; screenshots stream into ffmpeg with the voice mix and subtitles.
+// For each output frame it picks the captured frame. App and code frames get the camera (eased zoom
+// and pan) and sit in a window frame on a background; chalkboard and clay frames fill the screen.
+// Captions, name cards, title cards and fades go on top. The stage page renders each state;
+// screenshots stream into ffmpeg with the voice mix and subtitles.
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import fs from 'node:fs';
@@ -14,6 +15,8 @@ const H = 1080;
 const DEFAULT_BACKGROUND = 'radial-gradient(1400px 800px at 18% -10%, rgb(0 210 170 / 16%), transparent 60%), '
   + 'radial-gradient(1200px 700px at 100% 110%, rgb(80 120 255 / 10%), transparent 60%), linear-gradient(160deg, #111816, #090c0b)';
 const PALETTE = ['#3fe0c0', '#8fa8ff', '#f2c94c', '#ffa260', '#f5a3d0', '#9be38f'];
+// Scenes that fill the frame; the others (app, code) sit in a window.
+const FULL = new Set(['board', 'diagram', 'text', 'clay']);
 
 const easeInOut = p => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
 // Smootherstep: gentle at both ends, so camera moves start and settle without a jolt.
@@ -94,9 +97,10 @@ export async function compose({ cap, spec, intro, outro, out, fps = 30, silent =
     ...(outro?.line ? [{ ...outro.line, start: introMs + bodyMs + 500, end: introMs + bodyMs + 500 + outro.line.ms }] : []),
   ];
 
-  // Frames captured inside a scene (not mid page-load), in time order.
+  // Frames captured inside a scene (not mid page-load or mid-switch), in time order.
   const segmentOf = t => cap.segments.find(s => t >= s.from && t < (s.to ?? Infinity));
-  const frames = cap.frames.map(f => ({ ...f, scene: segmentOf(f.t)?.scene })).filter(f => f.scene);
+  const frames = cap.frames.filter(f => { const s = segmentOf(f.t); return s && (!f.scene || f.scene === s.scene); })
+    .map(f => ({ ...f, scene: f.scene || segmentOf(f.t).scene }));
   if (!frames.length) die('No usable frames were captured.');
   const frameAt = t => {
     let i = 0;
@@ -104,9 +108,12 @@ export async function compose({ cap, spec, intro, outro, out, fps = 30, silent =
     return frames[i];
   };
   const navs = cap.events.filter(e => e.type === 'nav');
-  const urlAt = t => {
+  const labels = cap.events.filter(e => e.type === 'label');
+  // The title bar: the app's address, or the project and file shown in the editor.
+  const urlAt = (t, scene) => {
+    if (scene === 'code' || scene === 'terminal') return labels.filter(l => l.t <= t && l.scene === scene).at(-1)?.text || '';
     const nav = navs.filter(n => n.t <= t).at(-1);
-    if (!nav || nav.url.startsWith('file:')) return '';
+    if (!nav || nav.url.startsWith('file:') || nav.url.startsWith('data:')) return '';
     try { const u = new URL(nav.url); return `${u.host}${u.pathname}${u.search}`; } catch { return nav.url; }
   };
 
@@ -157,7 +164,7 @@ export async function compose({ cap, spec, intro, outro, out, fps = 30, silent =
   };
   const captionAt = t => {
     if (!captions) return null;
-    const c = cues.find(q => t >= q.start && t < q.end + 200);
+    const c = cues.find(q => !q.hidden && t >= q.start && t < q.end + 200);
     if (!c) return null;
     return { text: c.caption, opacity: Math.min(clamp((t - c.start) / 150, 0, 1), clamp((c.end + 200 - t) / 150, 0, 1)) };
   };
@@ -168,10 +175,10 @@ export async function compose({ cap, spec, intro, outro, out, fps = 30, silent =
     if (t >= introMs + bodyMs) return { ...base, scene: 'title', title: outro };
     const w = wall(t);
     const f = frameAt(w);
-    if (f.scene === 'board') return { ...base, scene: 'board', src: pathToFileURL(f.file).href };
+    if (FULL.has(f.scene)) return { ...base, scene: f.scene, src: pathToFileURL(f.file).href };
     const c = look(w); // visible rectangle in page pixels
     const zoom = vw / c.w;
-    return { ...base, scene: 'app', src: pathToFileURL(f.file).href, imgW: view.w, zoom, tx: -c.x * k * zoom, ty: -c.y * k * zoom, url: urlAt(w) };
+    return { ...base, scene: f.scene, src: pathToFileURL(f.file).href, imgW: view.w, zoom, tx: -c.x * k * zoom, ty: -c.y * k * zoom, url: urlAt(w, f.scene) };
   };
 
   // ---------- render ----------

@@ -4,16 +4,17 @@ A chalkboard explains an idea before, or instead of, showing a product: structur
 
 ## Where it fits
 
-- Any step with `draw`, `erase` or `board: true` happens on the board. Other steps happen in the browser.
-- **Board, then product:** start with board steps, then a step whose `do` opens the app (`await d.goto('http://localhost:3000/...')`).
+- Any step with `draw`, `erase` or `board: true` happens on the board. A following step with only `say` holds on the board.
+- **Board, then product:** start with board steps, then app steps. The app opens at the spec's `url` the first time the video shows it, and keeps its state while the video visits the board.
 - **Board-only video:** leave out `url`.
-- **Back to the board later:** another `draw` step returns to the board. The board starts empty each time it opens.
+- **Back to the board later:** another `draw` step returns to it. The board starts empty at each chapter and whenever the video comes back to it.
+- **Board or clay?** The board is for precise structure (boxes, arrows, numbers). For a story with characters and things moving between places, use a clay scene (`clay.md`).
 
 ```js
 export default {
   name: 'how-it-works',
   board: { theme: 'graphite' },          // optional; see Themes
-  url: 'http://localhost:3000/auth/login', // only needed once the video leaves the board
+  url: 'http://localhost:3000/auth/login', // only needed once the video shows the app
   steps: [
     { say: 'Three services handle every request.', draw: [
       { title: 'Request flow' },
@@ -21,8 +22,8 @@ export default {
       { arrow: ['gw', 'api'] },
       { box: 'API', id: 'api', at: [800, 400] },
     ] },
-    { say: 'Now let us see it running.', erase: true },
-    { say: 'Sign in as an admin.', async do(d) { await d.goto('http://localhost:3000/auth/login'); /* … */ } },
+    { say: 'Now let us see it running.' },  // holds on the board
+    { say: 'Sign in as an admin.', async do(d) { await d.type('#email', 'admin@example.com'); } },
   ],
 };
 ```

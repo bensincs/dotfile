@@ -1,4 +1,6 @@
 // Compositor: narrate.mjs calls stage.layout() once, then stage.render(state) for every output frame.
+// Scenes: app, code and terminal sit in a window; board, diagram, text and clay fill the frame;
+// title shows a card.
 (() => {
   const $ = id => document.getElementById(id);
   const shown = { app: '', board: '' };
@@ -19,12 +21,12 @@
     },
     async render(s) {
       document.body.dataset.scene = s.scene;
-      if (s.scene === 'app') {
+      if (s.scene === 'app' || s.scene === 'code' || s.scene === 'terminal') {
         await load($('app'), 'app', s.src);
         $('app').style.width = `${s.imgW}px`;
         $('app').style.transform = `translate(${s.tx}px, ${s.ty}px) scale(${s.zoom})`;
         $('url').textContent = s.url || '';
-      } else if (s.scene === 'board') {
+      } else if (['board', 'clay', 'diagram', 'text'].includes(s.scene)) {
         await load($('board'), 'board', s.src);
       }
       $('content').style.opacity = s.scene === 'title' ? 0 : s.fade;

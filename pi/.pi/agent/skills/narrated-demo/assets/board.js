@@ -23,7 +23,6 @@ window.createChalkboard = (svg, { theme, chalk = null, resolve = null }) => {
   let uid = 0;
 
   const colour = name => theme.colors[name] || name || theme.colors.white;
-  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const el = (tag, attrs = {}) => {
     const node = document.createElementNS(NS, tag);
     for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
@@ -180,7 +179,17 @@ window.createChalkboard = (svg, { theme, chalk = null, resolve = null }) => {
       const { x, y } = spot;
       const left = opts.anchor === 'start' ? x : opts.anchor === 'end' ? x - m.w : x - m.w / 2;
       if (it.id) items.set(it.id, { x: left, y: y - m.h / 2, w: m.w, h: m.h });
-      return { weight: 0.4 + it.text.length * 0.035, run: ms => write(it.text, x, y, opts, ms) };
+      const backdrop = () => {
+        // A soft panel behind the text, so a note reads over busy surfaces such as code.
+        const pad = size * 0.35;
+        const panel = el('rect', { x: left - pad, y: y - m.h / 2 - pad * 0.6, width: m.w + pad * 2, height: m.h + pad * 1.2, rx: pad * 0.8, fill: it.backdrop });
+        ink.append(panel);
+        return panel.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, fill: 'forwards' }).finished;
+      };
+      return {
+        weight: 0.4 + it.text.length * 0.035,
+        async run(ms) { if (it.backdrop) await backdrop(); await write(it.text, x, y, opts, ms); },
+      };
     },
     title(it) {
       const t = kinds.text({ ...it, text: it.title, size: it.size || 64, at: it.at || [view.width / 2, 90], id: it.id || 'title' });
@@ -261,6 +270,12 @@ window.createChalkboard = (svg, { theme, chalk = null, resolve = null }) => {
     return kinds[kind](item);
   }
 
+  // A pause that keeps the page repainting, so the recorder's frames keep flowing through it.
+  const breathe = ms => new Promise(resolve => {
+    const start = performance.now();
+    const tick = now => { svg.style.opacity = svg.style.opacity === '0.999' ? '1' : '0.999'; now - start < ms ? requestAnimationFrame(tick) : resolve(); };
+    requestAnimationFrame(tick);
+  });
   async function draw(list, ms) {
     const steps = list.map(plan);
     const gaps = 140 * Math.max(0, steps.length - 1);
@@ -268,8 +283,9 @@ window.createChalkboard = (svg, { theme, chalk = null, resolve = null }) => {
     const total = steps.reduce((a, s) => a + s.weight, 0) || 1;
     for (const [i, s] of steps.entries()) {
       await s.run(Math.max(300, budget * s.weight / total));
-      if (i < steps.length - 1) await sleep(140);
+      if (i < steps.length - 1) await breathe(140);
     }
+    svg.style.opacity = '1';
     chalkAway();
   }
 

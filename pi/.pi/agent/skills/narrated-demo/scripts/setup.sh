@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sets up narrated demos: deploys Azure AI Speech (infra/main.bicep), writes the local config,
-# installs the recording runtime (Playwright) and checks speech works end to end.
+# installs the recording runtime (Playwright, chalk, clay, diagram and terminal renderers, Azure icons) and checks speech works end to end.
 #
 #   setup.sh --subscription <id or name> [--location swedencentral] [--resource-group rg-narrated-demo]
 #            [--name <speech resource>] [--sku S0|F0]
@@ -43,8 +43,30 @@ need ffprobe "Install it with: brew install ffmpeg"
 step "Installing the recording runtime in $runtime"
 mkdir -p "$runtime"
 [ -f "$runtime/package.json" ] || echo '{ "private": true }' > "$runtime/package.json"
-npm install --prefix "$runtime" --no-audit --no-fund --silent playwright@1 roughjs@4 @fontsource/caveat@5
+# three and Fredoka render claymation scenes; rough.js and Caveat draw the chalkboard.
+npm install --prefix "$runtime" --no-audit --no-fund --silent playwright@1 roughjs@4 @fontsource/caveat@5 \
+  three@0.170 @fontsource/fredoka@5
+# Inter labels diagrams and big text; xterm.js and JetBrains Mono draw terminal scenes.
+npm install --prefix "$runtime" --no-audit --no-fund --silent @fontsource/inter@5 @xterm/xterm@5 @fontsource/jetbrains-mono@5
 node "$runtime/node_modules/playwright/cli.js" install ffmpeg >/dev/null
+
+# Microsoft's Azure architecture icons, for diagram scenes. Microsoft permits their use in
+# architecture diagrams, training material and documentation. Re-downloaded only when it changes.
+icons_page="https://learn.microsoft.com/en-us/azure/architecture/icons/"
+icons_url=$(curl -fsSL "$icons_page" 2>/dev/null | grep -oE 'https://arch-center\.azureedge\.net/icons/[^"]+\.zip' | head -1 || true)
+icons_url="${icons_url:-https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V25.zip}"
+if [ "$(cat "$runtime/azure-icons/SOURCE" 2>/dev/null)" != "$icons_url" ]; then
+  step "Downloading the Azure architecture icons"
+  need unzip "Install unzip."
+  tmp_zip="$(mktemp -t azure-icons.XXXXXX)"
+  curl -fsSL -o "$tmp_zip" "$icons_url" || die "Could not download $icons_url (see $icons_page)."
+  rm -rf "$runtime/azure-icons"
+  mkdir -p "$runtime/azure-icons"
+  unzip -q "$tmp_zip" -d "$runtime/azure-icons"
+  rm -f "$tmp_zip"
+  echo "$icons_url" > "$runtime/azure-icons/SOURCE"
+fi
+echo "Azure icons: $(find "$runtime/azure-icons" -name '*.svg' | wc -l | tr -d ' ') from $icons_url"
 if [ ! -d "/Applications/Google Chrome.app" ] && ! command -v google-chrome >/dev/null 2>&1; then
   node "$runtime/node_modules/playwright/cli.js" install chromium
 fi

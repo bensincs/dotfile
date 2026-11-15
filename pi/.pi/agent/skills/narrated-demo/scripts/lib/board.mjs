@@ -25,8 +25,6 @@ const NOTE_COLORS = {
   orange: '#dd6b20', blue: '#3e63dd', green: '#2f9e44', pink: '#d6409f',
 };
 
-export const isBoardStep = step => Boolean(step.board || step.draw || step.erase);
-
 const fontCss = () => {
   const font = fs.readFileSync(dependency('@fontsource/caveat/files/caveat-latin-600-normal.woff2')).toString('base64');
   return `@font-face{font-family:Chalk;src:url(data:font/woff2;base64,${font}) format("woff2");font-weight:100 900}`;
@@ -57,11 +55,13 @@ ${theme.chalk ? '<div id="chalk"></div>' : ''}
   return pathToFileURL(file).href;
 }
 
-/** Scripts and styles that put a chalk layer over any page, for `annotate` steps. */
+/** Scripts and styles that put a chalk layer over any page, for `annotate` steps and code notes.
+ *  surface: 'light' (an app: marker-like inks) or 'dark' (an editor: the board's bright chalk). */
 export function notesKit(options = {}) {
+  const base = options.surface === 'dark' ? THEMES.graphite.colors : NOTE_COLORS;
   return {
     style: fontCss(),
     scripts: [fs.readFileSync(dependency('roughjs/bundled/rough.js'), 'utf8'), asset('board.js'), asset('notes.js')],
-    theme: { colors: { ...NOTE_COLORS, ...(options.colors || {}) } },
+    theme: { colors: { ...base, ...(options.surface === 'dark' ? {} : options.colors || {}) } },
   };
 }

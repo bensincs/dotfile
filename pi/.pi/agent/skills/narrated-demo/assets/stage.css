@@ -14,9 +14,16 @@ html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; font-fa
 #view { position: relative; overflow: hidden; background: #fff; }
 #app { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 body.bare #window { border-radius: 0; box-shadow: none; } body.bare #window .bar { display: none; }
-body.no-url #url { display: none; }
+body.no-url[data-scene=app] #url { display: none; }
 #board { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: contain; display: none; background: #0b0f0d; }
-body[data-scene=board] #board { display: block; } body[data-scene=board] #window { display: none; }
+body:is([data-scene=board], [data-scene=clay], [data-scene=diagram], [data-scene=text]) #board { display: block; }
+body:is([data-scene=board], [data-scene=clay], [data-scene=diagram], [data-scene=text]) #window { display: none; }
+body[data-scene=clay] #board { object-fit: cover; }
+/* Code: a title bar in the editor's own colours, showing the project and file. */
+/* Terminal: the same, with the shell and folder as its title. */
+body:is([data-scene=code], [data-scene=terminal]) #window { background: #1f1f1f; }
+body:is([data-scene=code], [data-scene=terminal]) #window .bar { background: #181818; border-bottom: 1px solid #2b2b2b; }
+body:is([data-scene=code], [data-scene=terminal]) #url { background: none; color: #cccccc; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 15px; }
 body[data-scene=title] #content { display: none; }
 
 #titlecard { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 22px;

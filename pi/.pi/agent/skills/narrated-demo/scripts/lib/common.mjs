@@ -24,11 +24,11 @@ export function dependency(file) {
   return full;
 }
 
-export async function launch({ headed = false } = {}) {
+export async function launch({ headed = false, args = [] } = {}) {
   const require = createRequire(path.join(RUNTIME, 'package.json'));
   let chromium;
   try { ({ chromium } = require('playwright')); } catch { die(`Playwright is not installed. Run: ${SKILL}/scripts/setup.sh --runtime-only`); }
-  return chromium.launch({ channel: 'chrome', headless: !headed }).catch(() => chromium.launch({ headless: !headed }));
+  return chromium.launch({ channel: 'chrome', headless: !headed, args }).catch(() => chromium.launch({ headless: !headed, args }));
 }
 
 export const initials = name => name.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();

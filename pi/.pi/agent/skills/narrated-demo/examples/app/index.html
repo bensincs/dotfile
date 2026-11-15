@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Storyboard</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 18px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f5f6f8; color: #1d2430; }
+  header { display: flex; align-items: center; gap: 12px; padding: 18px 36px; background: #1d2430; color: #fff; font-weight: 600; }
+  header span { width: 12px; height: 12px; border-radius: 50%; background: #3fe0c0; }
+  main { max-width: 980px; padding: 40px 48px; }
+  h1 { margin: 0 0 6px; font-size: 32px; }
+  p.lede { margin: 0 0 28px; color: #5a6475; }
+  .scenes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .scene { background: #fff; border: 1px solid #dde2ea; border-radius: 12px; padding: 18px; }
+  .scene b { display: block; font-size: 20px; }
+  .scene small { color: #5a6475; }
+  .scene i { display: block; width: 36px; height: 6px; border-radius: 3px; margin-bottom: 12px; }
+  button { font: inherit; font-weight: 600; background: #0f7b6c; color: #fff; border: 0; border-radius: 10px; padding: 14px 24px; cursor: pointer; }
+  #status { display: inline-block; margin-left: 18px; color: #5a6475; }
+  #status.done { color: #0f7b6c; font-weight: 600; }
+</style>
+</head>
+<body>
+<header><span></span>Storyboard</header>
+<main>
+  <h1>Release video</h1>
+  <p class="lede">Eight steps, four scenes, one narrator.</p>
+  <div class="scenes">
+    <div class="scene"><i style="background:#4f86c6"></i><b>Web</b><small>2 steps</small></div>
+    <div class="scene"><i style="background:#8b6fd6"></i><b>Code</b><small>2 steps</small></div>
+    <div class="scene"><i style="background:#5fae3e"></i><b>Chalk</b><small>2 steps</small></div>
+    <div class="scene"><i style="background:#ef6f5e"></i><b>Clay</b><small>2 steps</small></div>
+  </div>
+  <button id="render">Render video</button><span id="status">Not rendered yet</span>
+</main>
+<script>
+  document.getElementById('render').addEventListener('click', () => {
+    const status = document.getElementById('status');
+    status.textContent = 'Rendering…';
+    setTimeout(() => { status.textContent = 'video.mp4 ready, with captions'; status.className = 'done'; }, 700);
+  });
+</script>
+</body>
+</html>

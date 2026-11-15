@@ -1,0 +1,25 @@
+/* Big text page. The theme sets the variables. */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+body { display: grid; place-items: center; }
+#root { position: relative; width: 100%; height: 100%; display: grid; place-items: center; padding: 0 140px 120px; }
+#root::before { content: ""; position: absolute; inset: 0; background: var(--glow); pointer-events: none; }
+.card { position: relative; max-width: 1300px; text-align: center; }
+.card.left { text-align: left; justify-self: start; }
+.w { display: inline-block; }
+.accent { color: var(--accent); }
+.headline { margin: 0; font-size: 92px; line-height: 1.08; font-weight: 750; letter-spacing: -0.025em; text-wrap: balance; }
+.sub { margin: 28px auto 0; max-width: 1050px; font-size: 34px; line-height: 1.4; font-weight: 500; color: var(--sub); text-wrap: balance; }
+.number { font-size: 230px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.label { margin: 18px 0 0; font-size: 46px; font-weight: 650; letter-spacing: -0.01em; }
+.title { margin: 0 0 40px; font-size: 40px; font-weight: 650; color: var(--sub); letter-spacing: -0.01em; }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 26px; text-align: left; }
+.list li { display: flex; align-items: center; gap: 28px; font-size: 58px; font-weight: 700; letter-spacing: -0.015em; }
+.list .dot { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 8px var(--accent-soft); }
+.mark { font-size: 220px; line-height: 0.6; height: 90px; color: var(--accent); font-weight: 800; }
+.quote { margin: 0; font-size: 68px; line-height: 1.18; font-weight: 650; letter-spacing: -0.015em; text-wrap: balance; }
+.by { margin: 34px 0 0; font-size: 32px; color: var(--sub); font-weight: 500; }
+.stats { display: flex; gap: 90px; justify-content: center; }
+.stat .value { font-size: 150px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.stat.accent .value { color: var(--accent); }
+.stat .slabel { margin-top: 16px; font-size: 34px; color: var(--sub); font-weight: 600; }

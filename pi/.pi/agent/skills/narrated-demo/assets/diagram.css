@@ -1,0 +1,9 @@
+/* Diagram page. Colours come from the theme as CSS variables. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+svg { position: absolute; inset: 0; width: 100%; height: 100%; font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+#title { position: absolute; left: 60px; top: 38px; z-index: 2; }
+#title h1 { margin: 0; color: var(--text); font-size: 34px; font-weight: 700; letter-spacing: -0.01em; }
+#title h1:empty, #title p:empty { display: none; }
+#title p { margin: 4px 0 0; color: var(--sub); font-size: 18px; font-weight: 500; }
+#title h1::before { content: ""; display: block; width: 44px; height: 5px; border-radius: 3px; background: var(--accent); margin-bottom: 14px; }
+#title h1:empty::before { display: none; }
