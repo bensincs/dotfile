@@ -233,6 +233,11 @@ of routine machine setup. Application-written settings are symlinked too: inspec
   clipboard first; clipboard capture uses macOS `pbpaste` and is macOS-only.
 - Kitty Cmd+digit selects configured Pi model shortcuts; edit
   `pi/.pi/agent/model-shortcuts.json`, then `/reload` in Pi.
+- Pi: `/skill:fluent-ui redesign this screen` converts an existing UI to real
+  Fluent UI components. It requires Stagehand task checks, Playwright assertions
+  and screenshots, and visual inspection before calling the result verified.
+  Reuse configured browser tools or project-local SDKs; Stagehand needs authorized
+  model access. Run `/reload` to discover a newly added skill.
 
 ## Verify and maintain
 
