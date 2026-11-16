@@ -95,6 +95,7 @@ if OS.mac?
   cask "visual-studio-code@insiders"     # code-insiders CLI and GUI editor
   brew "terminal-notifier"              # herdr [ui.toast] delivery = "system"
   cask "kitty"                          # terminal
+  cask "handy"
   cask "font-jetbrains-mono-nerd-font"
 end
 
