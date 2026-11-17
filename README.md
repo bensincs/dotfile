@@ -51,13 +51,17 @@ It performs these steps:
 2. Trust the Brewfile's third-party taps and install/update its dependencies.
 3. Create real directories for Herdr, Pi, and Copilot runtime state.
 4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
-5. On Linux, install Azure CLI with `uv tool` if `az` is missing.
+5. Install Azure CLI with `uv tool` if `az` is missing (macOS and Linux).
 6. Restore the Neovim plugin versions from `lazy-lock.json`.
+7. Set up Tailscale: open the macOS app or start the Linux system service and
+   connect, prompting for sign-in when needed.
 
 Rerunning bootstrap reapplies configuration and may upgrade packages. It does not
-back up or overwrite conflicting dotfiles, change your login shell, sign into
-services, or install every language runtime. Neovim installs language servers and
-Treesitter parsers on demand; those downloads are not all completed by bootstrap.
+back up or overwrite conflicting dotfiles, change your login shell, or install
+every language runtime. Tailscale setup may prompt for sudo, macOS permissions,
+and browser sign-in; other service sign-ins remain manual. Neovim installs language
+servers and Treesitter parsers on demand; those downloads are not all completed
+by bootstrap.
 
 ### Existing dotfiles and recovery
 
@@ -168,6 +172,55 @@ The SDKMAN loader is optional. Bootstrap does not install SDKMAN or any JVM SDKs
 if needed, install it following <https://sdkman.io/install> and record project
 requirements separately.
 
+### Tailscale: private access between devices
+
+Run `./bootstrap.sh` on each device; no separate Tailscale setup commands are
+needed. The Brewfile selects the platform's package, and bootstrap handles startup
+and prompts for connection/sign-in when the device is not already connected.
+
+- **macOS (currently requires macOS 13+):** installs the official app and opens it
+  if disconnected. Approve the VPN/network extension permissions and sign in.
+  Enable launch at login in the app. Do not also install the Homebrew
+  `tailscale` formula. If the App Store version is already installed, follow
+  [Tailscale's migration guidance](https://tailscale.com/kb/1065/macos-variants)
+  before running bootstrap instead of installing a second copy.
+- **Linux (systemd required):** installs the CLI/daemon and uses sudo to start
+  Homebrew's persistent system service. Bootstrap waits for the daemon, then runs
+  `tailscale up` if disconnected. Open the printed login URL to finish sign-in;
+  bootstrap waits for the connection. Do not also run a separate distro-managed
+  `tailscaled` service.
+
+Reruns leave an existing connection and its Tailscale preferences unchanged.
+Device identity, keys, and service state stay local, outside Git; no Stow package
+or committed authentication key is needed.
+
+Repeat sign-in on every Mac and Linux device you want to reach. Approve devices
+in the [admin console](https://login.tailscale.com/admin/machines) if your tailnet
+requires it. Enable MagicDNS in the console's DNS settings to use device names.
+
+Once connected, on either platform:
+
+```bash
+tailscale status
+tailscale ip -4
+# Replace home-linux with the destination's name from tailscale status.
+tailscale ping home-linux
+ssh your-linux-user@home-linux
+```
+
+Tailscale provides a private network, not an SSH server. For incoming SSH, enable
+**System Settings → General → Sharing → Remote Login** on macOS, or install and
+enable your distribution's OpenSSH server on Linux. Normal SSH users, keys, and
+host-key checks still apply; Tailscale SSH is not enabled by these steps.
+Other services (web apps, Screen Sharing, etc.) must also be enabled and listening
+on an address reachable over Tailscale, not just `127.0.0.1`.
+
+Both devices must be online, awake, and connected to Tailscale. Tailnet access
+rules and host firewalls must allow the connection. Devices on the same tailnet
+are not necessarily all authorized to access each other. No router port
+forwarding, exit node, or subnet router is needed for direct access between
+enrolled devices.
+
 ### Accounts and authentication
 
 These are manual, per-machine steps. Do not copy their tokens into the repo.
@@ -175,8 +228,9 @@ These are manual, per-machine steps. Do not copy their tokens into the repo.
 - **GitHub:** run `gh auth login`, then `gh auth status`. Shared Git credentials
   use `gh` from PATH. Avoid replacing them with machine-specific absolute paths;
   commands such as `gh auth setup-git` may rewrite the symlinked `.gitconfig`.
-- **Azure:** run `az login`, then `az account set --subscription "Subscription Name"`
-  if the default subscription is not the intended one.
+- **Azure:** bootstrap installs Azure CLI through `uv tool` on macOS and Linux
+  when `az` is missing; existing installations are reused. Run `az login`, then
+  `az account set --subscription "Subscription Name"` if needed.
 - **Cloudflare:** run `wrangler login` when using Wrangler.
 - **Pi:** start `pi`, then use `/login` for the configured GitHub Copilot provider.
   Model defaults and Cmd+digit bindings live in `pi/.pi/agent/`; available models

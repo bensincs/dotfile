@@ -91,9 +91,9 @@ fi
 stow --dir="$DOTFILES_DIR" --target="$HOME" "${STOW_PACKAGES[@]}"
 
 # ----------------------------
-# 5. Linux-only tools Homebrew doesn't provide there
+# 5. Azure CLI (not available in Homebrew)
 # ----------------------------
-if [ "$OS" = Linux ] && ! command -v az >/dev/null 2>&1; then
+if ! command -v az >/dev/null 2>&1; then
   echo "▶ Installing Azure CLI (uv tool)..."
   uv tool install -q azure-cli
 fi
@@ -107,6 +107,35 @@ if command -v nvim >/dev/null 2>&1; then
   nvim --headless "+Lazy! restore" +qa
 else
   echo "⚠ nvim not found, skipping plugins"
+fi
+
+# ----------------------------
+# 7. Tailscale
+# ----------------------------
+if [ "$OS" = Darwin ]; then
+  if ! tailscale status >/dev/null 2>&1; then
+    echo "▶ Opening Tailscale. Approve permissions and sign into your tailnet."
+    open -a Tailscale
+  fi
+elif [ "$OS" = Linux ]; then
+  echo "▶ Starting the Tailscale system service (sudo required)..."
+  sudo --preserve-env=HOME "$(command -v brew)" services start tailscale
+
+  # Service startup can return before tailscaled's local API is ready.
+  # JSON status succeeds even before the device has signed in.
+  for attempt in {1..30}; do
+    if tailscale status --json >/dev/null 2>&1; then break; fi
+    if [ "$attempt" -eq 30 ]; then
+      echo "⚠ Tailscale service did not become ready. Check: tailscale status" >&2
+      exit 1
+    fi
+    sleep 1
+  done
+
+  if ! tailscale status >/dev/null 2>&1; then
+    echo "▶ Connecting Tailscale. Open the login URL if prompted."
+    sudo "$(command -v tailscale)" up
+  fi
 fi
 
 echo "✅ Bootstrap complete"

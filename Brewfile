@@ -20,8 +20,6 @@ brew "direnv"
 brew "zoxide"
 brew "eza"
 brew "bat"
-brew "tldr" if OS.mac?
-brew "tlrc" if OS.linux? # tldr client; Homebrew has no tldr formula on Linux
 brew "tree"
 brew "zsh-autosuggestions"
 brew "neovim" # Live-synced notes pad (the `n` command)
@@ -34,6 +32,9 @@ brew "ripgrep"
 brew "fd"
 brew "jq"
 brew "yq"
+
+# --- Private networking ---
+brew "tailscale" if OS.linux? # System service and sign-in handled by bootstrap.sh
 
 # --- Monitoring ---
 brew "bottom"
@@ -55,7 +56,7 @@ brew "azure/kubelogin/kubelogin"
 
 # --- Cloud / IaC ---
 tap "azure/functions"
-brew "azure-cli" if OS.mac? # Linux: uv tool install azure-cli (bootstrap.sh)
+# Azure CLI is installed with uv by bootstrap.sh; Homebrew no longer provides it.
 brew "cloudflare-wrangler"
 tap "hashicorp/tap"
 brew "hashicorp/tap/terraform"
@@ -90,6 +91,7 @@ npm "@microsoft/workiq"
 
 # --- macOS only: casks and desktop bits ---
 if OS.mac?
+  cask "tailscale-app"                  # Official Tailscale app and CLI
   cask "copilot-cli"                    # GitHub Copilot CLI
   cask "claude-code"                    # Claude Code
   cask "visual-studio-code@insiders"     # code-insiders CLI and GUI editor

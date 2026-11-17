@@ -155,9 +155,30 @@ if alias code >/dev/null 2>&1; then exit 1; fi
         # Never invoke a real package manager, installer, account CLI, or Neovim.
         bin_dir = self.work / "bin"
         bin_dir.mkdir(exist_ok=True)
-        for name in ("brew", "az", "nvim"):
+        self.env["TEST_BOOTSTRAP_LOG"] = str(self.work / "bootstrap.log")
+        Path(self.env["TEST_BOOTSTRAP_LOG"]).write_text("")
+        log_command = '''#!/bin/sh
+printf '%s %s\\n' "${0##*/}" "$*" >> "$TEST_BOOTSTRAP_LOG"
+'''
+        scripts = {
+            name: "exit 0\n" for name in ("brew", "az", "uv", "nvim", "open", "sleep")
+        }
+        scripts["tailscale"] = '''case "$*" in
+  "status --json") exit "${TEST_TAILSCALE_READY_STATUS:-0}" ;;
+  status) exit "${TEST_TAILSCALE_STATUS:-0}" ;;
+  up) exit "${TEST_TAILSCALE_UP_STATUS:-0}" ;;
+esac
+exit 99
+'''
+        scripts["sudo"] = '''if [ "$1" = --preserve-env=HOME ]; then shift; fi
+case "$1" in
+  "${0%/*}/brew"|"${0%/*}/tailscale") exec "$@" ;;
+  *) exit 99 ;;
+esac
+'''
+        for name, script in scripts.items():
             tool = bin_dir / name
-            tool.write_text("#!/bin/sh\nexit 0\n")
+            tool.write_text(log_command + script)
             tool.chmod(0o755)
         uname = bin_dir / "uname"
         uname.write_text("#!/bin/sh\nprintf '%s\\n' '" + platform + "'\n")
@@ -184,7 +205,84 @@ if alias code >/dev/null 2>&1; then exit 1; fi
                 for path in home.rglob("*"):
                     if path.is_symlink():
                         self.assertTrue(path.exists(), str(path))
+                calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+                self.assertNotIn("uv tool install", calls)
+                self.assertNotIn("tailscale up\n", calls)
+                self.assertNotIn("open -a Tailscale\n", calls)
+                if platform == "Linux":
+                    self.assertIn("/brew services start tailscale\n", calls)
+                    self.assertIn("tailscale status --json\n", calls)
+                else:
+                    self.assertNotIn("sudo ", calls)
 
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_installs_missing_azure_cli_on_both_platforms(self):
+        script = '''
+command() {
+  if [ "$*" = "-v az" ]; then return 1; fi
+  builtin command "$@"
+}
+source "$1"
+'''
+        for platform in ("Linux", "Darwin"):
+            with self.subTest(platform=platform):
+                home = self.work / platform
+                home.mkdir()
+                self.env["HOME"] = str(home)
+                self.mock_bootstrap_tools(platform)
+                result = self.run_command([
+                    "bash", "-c", script, "test", str(ROOT / "bootstrap.sh"),
+                ])
+                self.assert_success(result)
+                calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+                self.assertEqual(calls.count("uv tool install -q azure-cli\n"), 1)
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_tailscale_connects_when_needed(self):
+        self.env["TEST_TAILSCALE_STATUS"] = "1"
+        for platform in ("Linux", "Darwin"):
+            with self.subTest(platform=platform):
+                home = self.work / platform
+                home.mkdir()
+                self.env["HOME"] = str(home)
+                self.mock_bootstrap_tools(platform)
+                result = self.run_command(["bash", str(ROOT / "bootstrap.sh")])
+                self.assert_success(result)
+                calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+                if platform == "Linux":
+                    self.assertIn(
+                        "sudo --preserve-env=HOME " + str(self.work / "bin/brew")
+                        + " services start tailscale\n", calls,
+                    )
+                    self.assertIn(
+                        "sudo " + str(self.work / "bin/tailscale") + " up\n", calls,
+                    )
+                    self.assertIn("tailscale up\n", calls)
+                    self.assertNotIn("open -a Tailscale\n", calls)
+                else:
+                    self.assertIn("open -a Tailscale\n", calls)
+                    self.assertNotIn("sudo ", calls)
+                    self.assertNotIn("tailscale up\n", calls)
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_tailscale_service_timeout(self):
+        self.mock_bootstrap_tools("Linux")
+        self.env["TEST_TAILSCALE_READY_STATUS"] = "1"
+        result = self.run_command(["bash", str(ROOT / "bootstrap.sh")])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Tailscale service did not become ready", result.stderr)
+        calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+        self.assertEqual(calls.count("tailscale status --json\n"), 30)
+        self.assertNotIn("tailscale up\n", calls)
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_tailscale_connection_failure(self):
+        self.mock_bootstrap_tools("Linux")
+        self.env["TEST_TAILSCALE_STATUS"] = "1"
+        self.env["TEST_TAILSCALE_UP_STATUS"] = "1"
+        result = self.run_command(["bash", str(ROOT / "bootstrap.sh")])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("Bootstrap complete", result.stdout)
 
     @unittest.skipUnless(STOW, "requires GNU Stow")
     def test_bootstrap_conflicts_do_not_partially_stow(self):
