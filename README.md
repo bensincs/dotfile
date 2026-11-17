@@ -52,8 +52,9 @@ It performs these steps:
 3. Create real directories for Herdr, Pi, and Copilot runtime state.
 4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
 5. Install Azure CLI with `uv tool` if `az` is missing (macOS and Linux).
-6. Restore the Neovim plugin versions from `lazy-lock.json`.
-7. Set up Tailscale: open the macOS app or start the Linux system service and
+6. Install Herdr Core with its official curl installer if `herdr-core` is missing.
+7. Restore the Neovim plugin versions from `lazy-lock.json`.
+8. Set up Tailscale: open the macOS app or start the Linux system service and
    connect, prompting for sign-in when needed.
 
 Rerunning bootstrap reapplies configuration and may upgrade packages. It does not
@@ -172,6 +173,59 @@ The SDKMAN loader is optional. Bootstrap does not install SDKMAN or any JVM SDKs
 if needed, install it following <https://sdkman.io/install> and record project
 requirements separately.
 
+### Herdr Core
+
+Bootstrap downloads and runs <https://releases.herdr.dev/core/install.sh> on
+macOS and Linux when `herdr-core` is missing. This executes upstream code.
+The installer uses `~/.local/bin`, already on PATH, and adds the `hc` alias if
+that command is not already taken. Existing Core installations are left alone;
+use `hc update` to update an installer-managed copy.
+
+Herdr.app uses Core. The existing `herdr` TUI remains installed and uses its own
+server and configuration; its running terminals are not migrated to Core.
+
+The Brewfile installs Herdr.app on Apple Silicon Macs. On Linux and Intel Macs,
+install or build the app using <https://github.com/herdrdev/herdr-app>; the Core
+installer remains automatic. On Linux, install JetBrainsMono Nerd Font Mono
+separately, or the app falls back to its bundled JetBrains Mono.
+
+The `herdr-app` Stow package supplies settings, keyboard shortcuts and a Solarized
+Dark theme: Kitty's terminal palette, green cursor and Nerd Font, plus the TUI's
+blue active row and purple selection. It preserves the current 1.2 app zoom.
+The personal `bens-agents` layout replaces the header logo with **Ben's Agents**,
+keeping the original search and sidebar controls. Its `bens-brand` mod is a copy
+of the shipped header, so updates do not overwrite it. Select `bens-agents` once
+per screen from the layout picker; change its brand block's `props.label` to
+rename it. Shipped layouts/mods and runtime state are not managed by this package.
+Settings and keys reload live; Settings changes can also update the symlinked
+repository file.
+Back up existing `~/.config/herdr-app/settings.json` and `keys.json` before the
+first Stow. The custom keys file retains the current Mac shortcuts; future
+upstream shortcut additions must be merged manually.
+
+Herdr.app uses the same **Ctrl+A**, release, then action-key sequences as the TUI
+for its equivalent commands:
+
+| After Ctrl+A | Action |
+| --- | --- |
+| `v` / `-` | Split right / down |
+| `h`, `j`, `k`, `l` | Focus left, down, up, right |
+| `z` / `x` | Zoom / close pane (closing ends its program) |
+| `c` / `p` | New / previous tab |
+| `1`–`9` | Select tab |
+| `Shift+T` / `Shift+X` | Rename / close tab |
+| `Shift+N` / `w` | New space / space picker |
+| `Shift+W` / `Shift+D` | Rename / close space |
+| `b` / `s` / `?` | Toggle sidebar / settings / keyboard help |
+| `n` / `Ctrl+N` | Notes / capture clipboard into notes, in a new tab |
+| `q` | Close the app window; Core terminals keep running |
+| `Ctrl+A` | Send a normal Ctrl+A to the terminal |
+
+Ctrl+A now starts a key sequence instead of immediately going to the shell.
+The notes shortcuts open tabs rather than the TUI's popups; clipboard capture
+still requires macOS. TUI-only features such as resize mode and pane cycling
+are not mapped. Existing Cmd shortcuts remain available.
+
 ### Tailscale: private access between devices
 
 Run `./bootstrap.sh` on each device; no separate Tailscale setup commands are
@@ -259,6 +313,7 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | `diffnav/` | Diff viewer layout and theme |
 | `git/` | Identity, GitHub credentials, Delta, global ignores |
 | `herdr/` | Multiplexer, keybindings, notifications, session restore |
+| `herdr-app/` | Ben's Agents layout, Ctrl+A shortcuts, Solarized Dark theme |
 | `kitty/` | macOS terminal, font, palette, Cmd+digit escape sequences |
 | `nvim/` | Editor, pinned plugins, LSP, Treesitter, notes pad |
 | `pi/` | Agent instructions, MCP servers, package, model shortcuts, skills |

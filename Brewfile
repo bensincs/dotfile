@@ -91,6 +91,7 @@ npm "@microsoft/workiq"
 
 # --- macOS only: casks and desktop bits ---
 if OS.mac?
+  cask "herdr-app" if Hardware::CPU.arm? # Desktop app; Apple Silicon only
   cask "tailscale-app"                  # Official Tailscale app and CLI
   cask "copilot-cli"                    # GitHub Copilot CLI
   cask "claude-code"                    # Claude Code

@@ -56,7 +56,7 @@ class SetupTests(unittest.TestCase):
                     self.assert_success(self.run_command(["bash", "-n"], input=block))
 
     def test_configuration_formats(self):
-        for package in ("pi", "copilot", "nvim", "herdr", "starship", "bottom"):
+        for package in ("pi", "copilot", "nvim", "herdr", "herdr-app", "starship", "bottom"):
             for path in (ROOT / package).rglob("*"):
                 if "skills" in path.parts or path.suffix not in (".json", ".toml"):
                     continue
@@ -65,6 +65,77 @@ class SetupTests(unittest.TestCase):
                         json.load(source)
                     else:
                         tomllib.load(source)
+
+    def test_herdr_app_theme_matches_existing_terminal_styles(self):
+        theme = json.loads(
+            (ROOT / "herdr-app/.config/herdr-app/themes/solarized-dark.json").read_text()
+        )
+        kitty = dict(re.findall(
+            r"^(\w+)\s+(#[0-9a-f]{6})$",
+            (ROOT / "kitty/.config/kitty/kitty.conf").read_text(), re.MULTILINE,
+        ))
+        for name in ("background", "foreground", "cursor"):
+            self.assertEqual(theme[name], kitty[name])
+        self.assertEqual(theme["ansi"], [kitty["color" + str(i)] for i in range(16)])
+        with (ROOT / "herdr/.config/herdr/config.toml").open("rb") as source:
+            custom = tomllib.load(source)["theme"]["custom"]
+        self.assertEqual(theme["colors"]["chrome"], custom["sidebar_bg"])
+        self.assertEqual(theme["colors"]["selected"], custom["active_row_bg"])
+        self.assertEqual(theme["selection"], custom["selection_bg"])
+
+    def test_herdr_app_personal_branding(self):
+        base = ROOT / "herdr-app/.config/herdr-app"
+        layout = json.loads((base / "layouts/bens-agents.json").read_text())
+        nodes = {}
+        pending = [layout]
+        while pending:
+            node = pending.pop()
+            nodes[node["id"]] = node
+            pending.extend(node.get("children", []))
+        self.assertEqual(layout["cloned_from"]["name"], "main")
+        self.assertEqual(nodes["brand"]["content"], {
+            "mod": "bens-brand", "props": {"label": "Ben's Agents"},
+        })
+        self.assertEqual(nodes["sidebar-footer"]["content"]["mod"], "workspace-chrome")
+        mod = base / "mods/bens-brand"
+        metadata = json.loads((mod / "mod.json").read_text())
+        self.assertEqual(metadata["cloned_from"]["name"], "workspace-chrome")
+        self.assertNotIn("frame/welcome/herdr.png", (mod / "main.js").read_text())
+        for name in ("search", "sidebar", "settings", "plus"):
+            self.assertTrue((mod / (name + ".svg")).is_file())
+
+    def test_herdr_app_leader_shortcuts(self):
+        keys = json.loads((ROOT / "herdr-app/.config/herdr-app/keys.json").read_text())
+        with (ROOT / "herdr/.config/herdr/config.toml").open("rb") as source:
+            leader = tomllib.load(source)["keys"]["prefix"].replace("+", "-")
+        expected = {
+            "v": "pane.split:right", "-": "pane.split:down",
+            "h": "pane.go:left", "j": "pane.go:down",
+            "k": "pane.go:up", "l": "pane.go:right",
+            "z": "pane.zoom", "x": "pane.close",
+            "c": "tab.new", "p": "tab.prev",
+            "shift-t": "tab.rename", "shift-x": "tab.close",
+            "shift-n": "space.new", "shift-w": "space.rename",
+            "shift-d": "space.close", "w": "mod.open:picker",
+            "b": "layout.toggle:sidebar", "s": "app.settings",
+            "?": "app.help", "q": "window.close",
+        }
+        for key, action in expected.items():
+            self.assertEqual(keys["global"][leader + " " + key], action)
+        for index in range(1, 10):
+            self.assertEqual(
+                keys["global"][leader + " " + str(index)], "tab.select:" + str(index),
+            )
+        self.assertEqual(keys["terminal"][leader + " " + leader], "send:\u0001")
+        self.assertEqual(keys["global"]["cmd-d"], "pane.split:right")
+        self.assertEqual(keys["terminal"]["cmd-c"], "terminal.copy")
+        for key in ("n", "ctrl-n"):
+            action = keys["global"][leader + " " + key]
+            self.assertEqual(action["command"], "terminal.open")
+            self.assertEqual(action["args"]["place"], "tab")
+            self.assertEqual(
+                action["args"]["argv"][-1].endswith(" --clip"), key == "ctrl-n",
+            )
 
     @unittest.skipUnless(ZSH, "requires zsh")
     def test_shell_path_history_and_local_overrides(self):
@@ -161,8 +232,13 @@ if alias code >/dev/null 2>&1; then exit 1; fi
 printf '%s %s\\n' "${0##*/}" "$*" >> "$TEST_BOOTSTRAP_LOG"
 '''
         scripts = {
-            name: "exit 0\n" for name in ("brew", "az", "uv", "nvim", "open", "sleep")
+            name: "exit 0\n"
+            for name in ("brew", "az", "uv", "herdr-core", "nvim", "open", "sleep")
         }
+        scripts["curl"] = '''if [ "$*" != "-fsSL https://releases.herdr.dev/core/install.sh" ]; then exit 99; fi
+if [ "${TEST_CORE_DOWNLOAD_STATUS:-0}" != 0 ]; then exit "$TEST_CORE_DOWNLOAD_STATUS"; fi
+printf '%s\\n' 'echo core-installer >> "$TEST_BOOTSTRAP_LOG"' 'exit "${TEST_CORE_INSTALL_STATUS:-0}"'
+'''
         scripts["tailscale"] = '''case "$*" in
   "status --json") exit "${TEST_TAILSCALE_READY_STATUS:-0}" ;;
   status) exit "${TEST_TAILSCALE_STATUS:-0}" ;;
@@ -198,14 +274,32 @@ esac
                     self.assert_success(result)
                 self.assertEqual((home / ".gitconfig").resolve(), ROOT / "git/.gitconfig")
                 self.assertEqual((home / ".zshrc").resolve(), ROOT / "zsh/.zshrc")
-                for relative in (".config/herdr", ".pi/agent", ".copilot"):
+                for relative in (
+                    ".config/herdr", ".config/herdr-app", ".config/herdr-app/themes",
+                    ".config/herdr-app/layouts", ".config/herdr-app/mods/bens-brand",
+                    ".pi/agent", ".copilot",
+                ):
                     self.assertTrue((home / relative).is_dir())
                     self.assertFalse((home / relative).is_symlink())
+                for relative in (
+                    ".config/herdr-app/settings.json",
+                    ".config/herdr-app/keys.json",
+                    ".config/herdr-app/themes/solarized-dark.json",
+                    ".config/herdr-app/layouts/bens-agents.json",
+                    ".config/herdr-app/mods/bens-brand/main.js",
+                    ".config/herdr-app/mods/bens-brand/mod.json",
+                    ".config/herdr-app/mods/bens-brand/search.svg",
+                    ".config/herdr-app/mods/bens-brand/sidebar.svg",
+                    ".config/herdr-app/mods/bens-brand/settings.svg",
+                    ".config/herdr-app/mods/bens-brand/plus.svg",
+                ):
+                    self.assertEqual((home / relative).resolve(), ROOT / "herdr-app" / relative)
                 self.assertEqual((home / ".config/kitty").exists(), platform == "Darwin")
                 for path in home.rglob("*"):
                     if path.is_symlink():
                         self.assertTrue(path.exists(), str(path))
                 calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+                self.assertNotIn("curl ", calls)
                 self.assertNotIn("uv tool install", calls)
                 self.assertNotIn("tailscale up\n", calls)
                 self.assertNotIn("open -a Tailscale\n", calls)
@@ -236,6 +330,56 @@ source "$1"
                 self.assert_success(result)
                 calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
                 self.assertEqual(calls.count("uv tool install -q azure-cli\n"), 1)
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_installs_missing_herdr_core_on_both_platforms(self):
+        script = '''
+command() {
+  if [ "$*" = "-v herdr-core" ]; then return 1; fi
+  builtin command "$@"
+}
+source "$1"
+'''
+        for platform in ("Linux", "Darwin"):
+            with self.subTest(platform=platform):
+                home = self.work / platform
+                home.mkdir()
+                self.env["HOME"] = str(home)
+                self.mock_bootstrap_tools(platform)
+                result = self.run_command([
+                    "bash", "-c", script, "test", str(ROOT / "bootstrap.sh"),
+                ])
+                self.assert_success(result)
+                calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+                self.assertEqual(
+                    calls.count("curl -fsSL https://releases.herdr.dev/core/install.sh\n"), 1,
+                )
+                self.assertIn("core-installer\n", calls)
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_herdr_core_installer_failures(self):
+        script = '''
+command() {
+  if [ "$*" = "-v herdr-core" ]; then return 1; fi
+  builtin command "$@"
+}
+source "$1"
+'''
+        for failure in ("TEST_CORE_DOWNLOAD_STATUS", "TEST_CORE_INSTALL_STATUS"):
+            with self.subTest(failure=failure):
+                self.mock_bootstrap_tools("Linux")
+                self.env[failure] = "1"
+                result = self.run_command([
+                    "bash", "-c", script, "test", str(ROOT / "bootstrap.sh"),
+                ])
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("Bootstrap complete", result.stdout)
+                calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+                if failure == "TEST_CORE_DOWNLOAD_STATUS":
+                    self.assertNotIn("core-installer\n", calls)
+                else:
+                    self.assertIn("core-installer\n", calls)
+                del self.env[failure]
 
     @unittest.skipUnless(STOW, "requires GNU Stow")
     def test_bootstrap_tailscale_connects_when_needed(self):
