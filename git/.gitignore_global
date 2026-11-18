@@ -1,6 +1,10 @@
 # macOS
 .DS_Store
 
+# Private per-project configuration
+.me/
+.local/
+
 # Environment files
 .envrc
 
