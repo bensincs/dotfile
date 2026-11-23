@@ -9,7 +9,6 @@ brew "age" # Encrypted private backups
 
 # --- Git review ---
 brew "diffnav" # Live diff viewer with a file tree
-brew "lazygit"
 
 # --- Shell / UX ---
 brew "zsh" if OS.linux? # macOS already includes Zsh

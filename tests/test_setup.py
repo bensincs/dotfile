@@ -90,7 +90,7 @@ class SetupTests(unittest.TestCase):
         self.assertNotIn("warning", result.stdout.lower() + result.stderr.lower())
 
     def test_retired_tools_are_not_configured(self):
-        for tool in ("herdr", "tmux"):
+        for tool in ("herdr", "tmux", "lazygit"):
             for name in ("Brewfile", "bootstrap.sh", "README.md", "AGENTS.md", "zsh/.zshrc"):
                 self.assertNotIn(tool, (ROOT / name).read_text().lower(), name)
             self.assertFalse((ROOT / tool).exists())
