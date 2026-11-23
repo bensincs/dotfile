@@ -100,7 +100,15 @@ if ! command -v az >/dev/null 2>&1; then
 fi
 
 # ----------------------------
-# 6. Neovim plugins
+# 6. Rex CLI (Linux only)
+# ----------------------------
+if [ "$OS" = Linux ] && ! command -v rex >/dev/null 2>&1; then
+  echo "▶ Installing Rex CLI (official installer)..."
+  curl -fsSL https://pkgs.superlogical.com/rex/install.sh | sh
+fi
+
+# ----------------------------
+# 7. Neovim plugins
 # ----------------------------
 # Installs the versions pinned in nvim/.config/nvim/lazy-lock.json.
 if command -v nvim >/dev/null 2>&1; then
@@ -111,7 +119,7 @@ else
 fi
 
 # ----------------------------
-# 7. Tailscale
+# 8. Tailscale
 # ----------------------------
 if [ "$OS" = Darwin ]; then
   if ! tailscale status >/dev/null 2>&1; then

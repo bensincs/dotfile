@@ -52,8 +52,9 @@ It performs these steps:
 3. Create real directories for Herdr, Pi, and Copilot runtime state.
 4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
 5. Install Azure CLI with `uv tool` if `az` is missing (macOS and Linux).
-6. Restore the Neovim plugin versions from `lazy-lock.json`.
-7. Set up Tailscale: open the macOS app or start the Linux system service and
+6. Install the Rex CLI with its official installer if `rex` is missing (Linux only).
+7. Restore the Neovim plugin versions from `lazy-lock.json`.
+8. Set up Tailscale: open the macOS app or start the Linux system service and
    connect, prompting for sign-in when needed.
 
 Rerunning bootstrap reapplies configuration and may upgrade packages. It does not
@@ -63,7 +64,17 @@ and browser sign-in; other service sign-ins remain manual. Neovim installs langu
 servers and Treesitter parsers on demand; those downloads are not all completed
 by bootstrap.
 
-### Rex terminal (macOS)
+### Rex
+
+On Linux, bootstrap installs the Rex CLI when `rex` is missing using:
+
+```bash
+curl -fsSL https://pkgs.superlogical.com/rex/install.sh | sh
+```
+
+The macOS client configuration in `rex/` is not stowed on Linux.
+
+#### Terminal client (macOS)
 
 Install Rex Beta manually; it is not installed by the Brewfile. Bootstrap stows
 `rex/` alongside Kitty on macOS and leaves Kitty unchanged. To link just Rex:

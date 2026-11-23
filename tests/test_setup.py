@@ -197,9 +197,18 @@ printf '%s %s\\n' "${0##*/}" "$*" >> "$TEST_BOOTSTRAP_LOG"
 '''
         scripts = {
             name: "exit 0\n"
-            for name in ("brew", "az", "uv", "nvim", "open", "sleep")
+            for name in ("brew", "az", "uv", "nvim", "open", "sleep", "rex")
         }
-        scripts["curl"] = "exit 99\n"
+        scripts["curl"] = '''[ "$*" = "-fsSL https://pkgs.superlogical.com/rex/install.sh" ] || exit 99
+[ "${TEST_REX_DOWNLOAD_STATUS:-0}" -eq 0 ] || exit "$TEST_REX_DOWNLOAD_STATUS"
+cat <<'INSTALLER'
+printf 'rex-installer\\n' >> "$TEST_BOOTSTRAP_LOG"
+[ "${TEST_REX_INSTALL_STATUS:-0}" -eq 0 ] || exit "$TEST_REX_INSTALL_STATUS"
+mkdir -p "$HOME/.local/bin"
+printf '#!/bin/sh\\nexit 0\\n' > "$HOME/.local/bin/rex"
+chmod +x "$HOME/.local/bin/rex"
+INSTALLER
+'''
         scripts["tailscale"] = '''case "$*" in
   "status --json") exit "${TEST_TAILSCALE_READY_STATUS:-0}" ;;
   status) exit "${TEST_TAILSCALE_STATUS:-0}" ;;
@@ -281,6 +290,54 @@ source "$1"
                 self.assert_success(result)
                 calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
                 self.assertEqual(calls.count("uv tool install -q azure-cli\n"), 1)
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_installs_missing_rex_only_on_linux_and_can_repeat(self):
+        script = '''
+command() {
+  if [ "$*" = "-v rex" ] && [ ! -x "$HOME/.local/bin/rex" ]; then return 1; fi
+  builtin command "$@"
+}
+source "$1"
+'''
+        for platform in ("Linux", "Darwin"):
+            with self.subTest(platform=platform):
+                home = self.work / platform
+                home.mkdir()
+                self.env["HOME"] = str(home)
+                self.mock_bootstrap_tools(platform)
+                for _ in range(2):
+                    result = self.run_command([
+                        "bash", "-c", script, "test", str(ROOT / "bootstrap.sh"),
+                    ])
+                    self.assert_success(result)
+                calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+                expected = 1 if platform == "Linux" else 0
+                self.assertEqual(calls.count(
+                    "curl -fsSL https://pkgs.superlogical.com/rex/install.sh\n",
+                ), expected)
+                self.assertEqual(calls.count("rex-installer\n"), expected)
+                self.assertEqual((home / ".local/bin/rex").exists(), platform == "Linux")
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_rex_installer_failures_stop_setup(self):
+        script = '''
+command() {
+  if [ "$*" = "-v rex" ]; then return 1; fi
+  builtin command "$@"
+}
+source "$1"
+'''
+        for variable in ("TEST_REX_DOWNLOAD_STATUS", "TEST_REX_INSTALL_STATUS"):
+            with self.subTest(variable=variable):
+                self.mock_bootstrap_tools("Linux")
+                self.env[variable] = "1"
+                result = self.run_command([
+                    "bash", "-c", script, "test", str(ROOT / "bootstrap.sh"),
+                ])
+                del self.env[variable]
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("Bootstrap complete", result.stdout)
 
     @unittest.skipUnless(STOW, "requires GNU Stow")
     def test_bootstrap_tailscale_connects_when_needed(self):
