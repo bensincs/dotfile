@@ -63,7 +63,7 @@ cd "$DOTFILES_DIR"
 
 # Directories apps write their own state into must be real, not stow-folded symlinks into this
 # repo (on a fresh machine stow would otherwise link the whole directory).
-mkdir -p "$HOME/.config/herdr" "$HOME/.pi/agent" "$HOME/.copilot"
+mkdir -p "$HOME/.pi/agent" "$HOME/.copilot"
 
 STOW_PACKAGES=(
   agents
@@ -75,7 +75,6 @@ STOW_PACKAGES=(
   starship
   zsh
   tmux
-  herdr
   copilot
 )
 [ "$OS" = Darwin ] && STOW_PACKAGES+=(kitty rex)

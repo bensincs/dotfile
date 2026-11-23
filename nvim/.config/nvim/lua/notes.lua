@@ -1,7 +1,7 @@
 -- Live-synced scratch pad behavior, loaded only by the `n` zsh function:
 --   nvim -c 'lua require("notes")' <file>
 -- Every instance autosaves on each keystroke and reloads when the file changes,
--- so any number of terminals or herdr panes stay in sync.
+-- so any number of terminals or Rex panes stay in sync.
 
 local o = vim.opt
 o.autoread = true

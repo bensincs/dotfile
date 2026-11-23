@@ -71,9 +71,6 @@ brew "pre-commit"
 # --- Terminal multiplexer ---
 brew "tmux"
 
-# --- Agent multiplexer ---
-brew "herdr"
-
 # --- Coding agents ---
 brew "pi-coding-agent"
 
@@ -95,7 +92,6 @@ if OS.mac?
   cask "copilot-cli"                    # GitHub Copilot CLI
   cask "claude-code"                    # Claude Code
   cask "visual-studio-code@insiders"     # code-insiders CLI and GUI editor
-  brew "terminal-notifier"              # herdr [ui.toast] delivery = "system"
   cask "kitty"                          # terminal
   # Rex Beta is installed manually; see README.md.
   cask "handy"

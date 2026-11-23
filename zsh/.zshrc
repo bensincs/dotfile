@@ -93,7 +93,7 @@ tm() {
   fi
 }
 
-# n - live-synced notes pad. Works in any number of terminals or herdr panes.
+# n - live-synced notes pad. Works in any number of terminals or Rex panes.
 #   n              open the pad
 #   n some text    append a line without opening it
 #   cmd | n        append piped output

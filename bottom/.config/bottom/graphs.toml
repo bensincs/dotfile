@@ -1,4 +1,4 @@
-# A single row of graphs for a short herdr monitor pane.
+# A single row of graphs for a short Rex monitor pane.
 [flags]
 default_cpu_entry = "avg"
 

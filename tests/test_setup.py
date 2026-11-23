@@ -57,7 +57,7 @@ class SetupTests(unittest.TestCase):
                     self.assert_success(self.run_command(["bash", "-n"], input=block))
 
     def test_configuration_formats(self):
-        for package in ("pi", "copilot", "nvim", "herdr", "starship", "bottom"):
+        for package in ("pi", "copilot", "nvim", "starship", "bottom"):
             for path in (ROOT / package).rglob("*"):
                 if "skills" in path.parts or path.suffix not in (".json", ".toml"):
                     continue
@@ -89,13 +89,10 @@ class SetupTests(unittest.TestCase):
         self.assert_success(result)
         self.assertNotIn("warning", result.stdout.lower() + result.stderr.lower())
 
-    def test_only_herdr_tui_is_configured(self):
-        brewfile = (ROOT / "Brewfile").read_text()
-        bootstrap = (ROOT / "bootstrap.sh").read_text()
-        self.assertIn('brew "herdr"', brewfile)
-        self.assertNotIn('cask "herdr-app"', brewfile)
-        self.assertNotIn("releases.herdr.dev/core/", bootstrap)
-        self.assertNotIn("herdr-app", bootstrap)
+    def test_herdr_is_not_configured(self):
+        for name in ("Brewfile", "bootstrap.sh", "README.md", "AGENTS.md"):
+            self.assertNotIn("herdr", (ROOT / name).read_text().lower(), name)
+        self.assertFalse((ROOT / "herdr").exists())
         self.assertFalse((ROOT / "herdr-app").exists())
 
     @unittest.skipUnless(ZSH, "requires zsh")
@@ -166,10 +163,6 @@ if alias code >/dev/null 2>&1; then exit 1; fi
     def test_removed_agent_integrations(self):
         self.assertNotIn('brew "opencode"', (ROOT / "Brewfile").read_text())
         self.assertFalse((ROOT / "zsh/.config/zsh/aicode.sh").exists())
-        with (ROOT / "herdr/.config/herdr/config.toml").open("rb") as source:
-            config = tomllib.load(source)
-        bindings = config["keys"].get("command", [])
-        self.assertNotIn("prefix+i", [binding["key"] for binding in bindings])
         result = self.run_command([
             "git", "config", "--file", str(ROOT / "git/.gitconfig"), "--get", "alias.ai",
         ])
@@ -244,7 +237,7 @@ esac
                     self.assert_success(result)
                 self.assertEqual((home / ".gitconfig").resolve(), ROOT / "git/.gitconfig")
                 self.assertEqual((home / ".zshrc").resolve(), ROOT / "zsh/.zshrc")
-                for relative in (".config/herdr", ".pi/agent", ".copilot"):
+                for relative in (".pi/agent", ".copilot"):
                     self.assertTrue((home / relative).is_dir())
                     self.assertFalse((home / relative).is_symlink())
                 for package in ("kitty", "rex"):

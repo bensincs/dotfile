@@ -11,8 +11,8 @@ packages; GNU Stow links configuration into `$HOME`.
 - Tool directories: Stow packages mirroring their home-directory layout.
 - `tests/`: isolated setup regression tests.
 
-Packages: agents, bottom, copilot, diffnav, git, herdr, kitty, nvim, pi, rex,
-starship, tmux, zsh. Kitty and Rex configuration are macOS-only; bootstrap installs
+Packages: agents, bottom, copilot, diffnav, git, kitty, nvim, pi, rex, starship,
+tmux, zsh. Kitty and Rex configuration are macOS-only; bootstrap installs
 Rex CLI separately on Linux. Shared skills live in
 `agents/.agents/skills/`. Cloudflare skills are vendored reference material with
 their own license; do not rewrite them during setup maintenance.

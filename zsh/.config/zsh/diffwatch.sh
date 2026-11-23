@@ -47,10 +47,9 @@ export GIT_ALTERNATE_OBJECT_DIRECTORIES="\"$objects_path\"${GIT_ALTERNATE_OBJECT
 git read-tree "$DIFFWATCH_BASELINE"
 git add --all -- .
 
-# Label only this pane when launched inside herdr; renaming is best-effort.
-if [[ "${HERDR_ENV:-}" == "1" && -n "${HERDR_PANE_ID:-}" ]] && \
-  command -v herdr >/dev/null 2>&1; then
-  herdr pane rename "$HERDR_PANE_ID" "diffwatch · ${repo_root##*/}" >/dev/null 2>&1 || true
+# Label only this pane when launched inside Rex; renaming is best-effort.
+if [[ -n "${REX_SESSION:-}" && -n "${REX_BLOCK:-}" ]] && command -v rex >/dev/null 2>&1; then
+  rex block rename -s "$REX_SESSION" "$REX_BLOCK" "diffwatch · ${repo_root##*/}" >/dev/null 2>&1 || true
 fi
 
 # The watch shell expands this variable on each refresh.

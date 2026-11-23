@@ -51,7 +51,7 @@ for _, direction in ipairs({ "left", "right", "up", "down" }) do
 end
 rex.bind("ctrl+a>ctrl+a", "pane.send_key", { key = "ctrl+a" })
 
--- Send the same explicit CSI-u Super+digit bytes as Kitty, including through herdr.
+-- Send the same explicit CSI-u Super+digit bytes as Kitty.
 -- These replace Rex's default tab-selection and font-reset shortcuts.
 for digit = 0, 9 do
   local sequence = string.format("\27[%d;9u", 48 + digit)

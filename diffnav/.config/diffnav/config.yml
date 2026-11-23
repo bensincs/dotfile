@@ -1,4 +1,4 @@
-# Compact layout for herdr panes; icons match Kitty's Nerd Font.
+# Compact layout for Rex panes; icons match Kitty's Nerd Font.
 ui:
   hideHeader: true
   hideFooter: true

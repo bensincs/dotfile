@@ -1,6 +1,6 @@
 -- Shared look for every Neovim setup (main config and the notes pad).
 -- Use the terminal's 16-color palette (Solarized Dark in kitty) instead of
--- Neovim's own RGB colors, so Neovim matches kitty, herdr, and delta,
+-- Neovim's own RGB colors, so Neovim matches kitty, Rex, and delta,
 -- including kitty's background opacity and blur.
 local o = vim.opt
 o.termguicolors = false

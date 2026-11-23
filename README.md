@@ -49,7 +49,7 @@ It performs these steps:
 
 1. Find or install Homebrew and load its environment.
 2. Trust the Brewfile's third-party taps and install/update its dependencies.
-3. Create real directories for Herdr, Pi, and Copilot runtime state.
+3. Create real directories for Pi and Copilot runtime state.
 4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
 5. Install Azure CLI with `uv tool` if `az` is missing (macOS and Linux).
 6. Install the Rex CLI with its official installer if `rex` is missing (Linux only).
@@ -327,7 +327,6 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | `copilot/` | Copilot CLI preferences |
 | `diffnav/` | Diff viewer layout and theme |
 | `git/` | Identity, GitHub credentials, Delta, global ignores |
-| `herdr/` | Multiplexer, keybindings, notifications, session restore |
 | `kitty/` | macOS terminal, font, palette, Cmd+digit escape sequences |
 | `nvim/` | Editor, pinned plugins, LSP, Treesitter, notes pad |
 | `pi/` | Pi instructions, MCP servers, package, and model shortcuts |
@@ -353,8 +352,7 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
   without changing your staging area.
 - `n`: open `~/notes/dump.md`; `n some text` or `command | n`: append. Override
   with `NOTES_FILE`. Ctrl+Q closes the pad; Ctrl+E toggles its file tree.
-  Herdr: Ctrl+A, then N opens the pad. Ctrl+A, then Ctrl+N also captures the
-  clipboard first; clipboard capture uses macOS `pbpaste` and is macOS-only.
+  `n --clip` appends the clipboard first (macOS `pbpaste` only).
 - Kitty and Rex Cmd+digit select configured Pi model shortcuts; edit
   `pi/.pi/agent/model-shortcuts.json`, then `/reload` in Pi.
 - Pi: `/skill:fluent-ui redesign this screen` converts an existing UI to real
