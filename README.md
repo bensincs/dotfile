@@ -106,7 +106,8 @@ No account state or application preferences are committed.
 Rex uses Ctrl+A as a leader: then V splits right, H splits below, T opens a
 new tab, X closes the focused pane, P opens the command palette, N opens the
 notes pad as a popup (Ctrl+N appends the clipboard first), W opens the
-worktree manager (`wt ui`), and arrow keys
+worktree manager (`wt ui`), K switches kubectl context, M opens `btm`
+system monitoring, and arrow keys
 focus the pane in that direction. Ctrl+A twice sends a literal Ctrl+A to the
 terminal. Cmd pane/tab management shortcuts are disabled.
 
@@ -355,6 +356,9 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
   when Rex updates. The shell reports its directory to the terminal (OSC 7), so
   Rex tab titles and new tabs and splits follow it.
 - `z` / `cd`: zoxide navigation. `gs`, `gp`: Git status and pull. `k`: kubectl.
+- `kctx`: switch kubectl context from a list; type to filter (characters in
+  order, so `c2qa` finds `aks-cortex2-qa-…`), Enter switches, Esc clears or quits.
+  In Rex, Ctrl+A then K opens it as a popup.
 - `wt`: git worktrees at `~/worktrees/<repo>/<branch>` (override with `WT_ROOT`).
   `wt new <branch> [base]` creates one from the fresh default branch (or an
   existing local/remote branch); `wt go <name>` opens it; `wt ls` shows each

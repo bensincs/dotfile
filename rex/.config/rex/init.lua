@@ -103,6 +103,44 @@ rex.action{
 }
 
 rex.bind("ctrl+a>w", "worktrees")
+
+-- Opens a command in a floating pane over the current tab; quitting it closes the pane.
+local function popup(ctx, command, bounds)
+  local result, err = rex.session.new_layer{
+    session_id = ctx.session_id,
+    bounds = bounds,
+    layout = rex.layout.block{
+      flavor = "com.superlogical.terminal.shell",
+      options = { command = command },
+    },
+    focus = true,
+  }
+  if not result then error(err) end
+  return result
+end
+
+-- Ctrl+A, K switches kubectl context; Ctrl+A, M opens system monitoring.
+rex.action{
+  name = "kube_context",
+  title = "Switch Kubernetes Context",
+  description = "Pick a kubectl context in a floating pane.",
+  run = function(ctx)
+    return popup(ctx, { "python3", os.getenv("HOME") .. "/.config/zsh/kctx.py" },
+      { 0.2, 0.15, 0.6, 0.6 })
+  end,
+}
+
+rex.action{
+  name = "monitor",
+  title = "System Monitor",
+  description = "Open bottom (btm) in a floating pane.",
+  run = function(ctx)
+    return popup(ctx, { "btm" }, { 0.05, 0.05, 0.9, 0.9 })
+  end,
+}
+
+rex.bind("ctrl+a>k", "kube_context")
+rex.bind("ctrl+a>m", "monitor")
 for _, direction in ipairs({ "left", "right", "up", "down" }) do
   rex.bind("ctrl+a>" .. direction, "pane.focus", { direction = direction })
 end

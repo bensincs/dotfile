@@ -129,6 +129,11 @@ n() {
 # kubernetes
 alias k="kubectl"
 
+# kctx - switch kubectl context from a filterable list (Rex: Ctrl+A, then K).
+kctx() {
+  python3 "$HOME/.config/zsh/kctx.py"
+}
+
 # misc
 if command -v code-insiders >/dev/null 2>&1; then
   alias code="code-insiders"

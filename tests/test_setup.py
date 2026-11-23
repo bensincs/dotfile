@@ -140,6 +140,7 @@ source "$1/zsh/.zshrc" || exit 1
 if alias code >/dev/null 2>&1; then exit 1; fi
 (( ${+functions[diffwatch]} )) || exit 1
 (( ${+functions[wt]} )) || exit 1
+(( ${+functions[kctx]} )) || exit 1
 (( ! ${+functions[oc]} && ! ${+functions[aicode]} )) || exit 1
 '''
         self.assert_success(self.run_command([ZSH, "-d", "-f", "-c", script, "test", str(ROOT)]))
@@ -158,9 +159,11 @@ if alias code >/dev/null 2>&1; then exit 1; fi
         self.assert_success(result)
         self.assertEqual(result.stdout.strip(), "nvim")
 
-    def test_wt_tui_compiles(self):
-        source = (ROOT / "zsh/.config/zsh/wt_tui.py").read_text()
-        compile(source, "wt_tui.py", "exec")
+    def test_python_tools_compile(self):
+        for name in ("wt_tui.py", "kctx.py"):
+            with self.subTest(name=name):
+                source = (ROOT / "zsh/.config/zsh" / name).read_text()
+                compile(source, name, "exec")
 
     def test_wt_creates_lists_and_safely_removes_worktrees(self):
         wt = ["bash", str(ROOT / "zsh/.config/zsh/wt.sh")]
