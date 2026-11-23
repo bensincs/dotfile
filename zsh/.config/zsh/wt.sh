@@ -8,8 +8,9 @@
 #   wt prune                 forget worktrees whose folders are already gone
 #
 # Worktrees live at ${WT_ROOT:-~/worktrees}/<repo>/<branch, with / as ->.
-# <name> is that folder name or the branch name. Outside Rex, `wt new` and
-# `wt go` print the path on stdout so the zsh `wt` function can cd into it.
+# <name> is that folder name or the branch name. Inside Rex, `wt new` and `wt go`
+# open a background tab named wt:<repo>/<name> without taking focus. Outside Rex,
+# they print the path on stdout so the zsh `wt` function can cd into it.
 set -euo pipefail
 
 root="${WT_ROOT:-$HOME/worktrees}"
@@ -69,20 +70,28 @@ rex_current_window() {
       '[.windows[] | select([.. | .block_id? // empty] | index($block)) | .window_id][0] // empty'
 }
 
-# Focuses the worktree's Rex tab, opening one if needed. Outside Rex, prints the path.
+# The Rex tab name for a worktree: wt:<repo>/<folder>, or wt:<repo>/<branch> for
+# the main checkout.
+tab_label() {
+  local repo="$1" path="$2" branch="${3:-}" name
+  name="${path##*/}"
+  [[ "$path" != "$repo" ]] || name="${branch:-main}"
+  printf 'wt:%s/%s' "$(basename "$repo")" "$name"
+}
+
+# Opens the worktree in a background Rex tab unless one is already open.
+# Outside Rex, prints the path.
 open_worktree() {
-  local path="$1" label window
-  label="${path##*/}"
+  local repo="$1" path="$2" branch="${3:-}" label
   if ! in_rex; then
     printf '%s\n' "$path"
     return 0
   fi
-  window="$(rex_window "$label")"
-  if [[ -n "$window" ]]; then
-    rex focus -s "$REX_SESSION" "$window" >/dev/null
-    say "focused Rex tab '$label'"
+  label="$(tab_label "$repo" "$path" "$branch")"
+  if [[ -n "$(rex_window "$label")" ]]; then
+    say "already open in Rex tab '$label'"
   else
-    rex window new -s "$REX_SESSION" "$label" -c "$path" >/dev/null
+    rex window new -s "$REX_SESSION" "$label" -c "$path" --focus=false >/dev/null
     say "opened Rex tab '$label'"
   fi
 }
@@ -114,7 +123,7 @@ cmd_new() {
     fi
     git -C "$repo" worktree add --no-track -b "$branch" "$path" "$base" >&2
   fi
-  open_worktree "$path"
+  open_worktree "$repo" "$path" "$branch"
 }
 
 cmd_ls() {
@@ -138,12 +147,13 @@ cmd_ls() {
 
 cmd_go() {
   [[ $# -eq 1 ]] || die "usage: wt go <name>"
-  local repo found path
+  local repo found path branch
   repo="$(repo_dir)"
   found="$(resolve "$repo" "$1")"
   path="${found%%$'\t'*}"
+  branch="${found#*$'\t'}"
   [[ -d "$path" ]] || die "$path is missing; run: wt prune"
-  open_worktree "$path"
+  open_worktree "$repo" "$path" "$branch"
 }
 
 cmd_rm() {
@@ -162,10 +172,12 @@ cmd_rm() {
   [[ "$unpushed" == 0 ]] || die "$1 has $unpushed unpushed commit(s); push them first"
 
   if in_rex; then
-    window="$(rex_window "${path##*/}")"
+    local label
+    label="$(tab_label "$repo" "$path" "$branch")"
+    window="$(rex_window "$label")"
     current="$(rex_current_window)"
     if [[ -n "$window" && "$window" != "$current" ]]; then
-      rex window close -s "$REX_SESSION" "$window" >/dev/null && say "closed Rex tab '${path##*/}'"
+      rex window close -s "$REX_SESSION" "$window" >/dev/null && say "closed Rex tab '$label'"
     fi
   fi
 

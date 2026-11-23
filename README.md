@@ -360,8 +360,9 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
   existing local/remote branch); `wt go <name>` opens it; `wt ls` shows each
   worktree's uncommitted and unpushed counts; `wt rm <name>` removes only clean,
   fully pushed worktrees and deletes the branch if merged; `wt prune` forgets
-  worktrees whose folders are gone. Inside Rex, `new` and `go` open or focus a tab
-  named after the worktree, and `rm` closes it; elsewhere they `cd`. Never delete a
+  worktrees whose folders are gone. Inside Rex, `new` and `go` open a background
+  tab named `wt:<repo>/<worktree>` (`wt:<repo>/<branch>` for the main checkout)
+  without taking focus, and `rm` closes it; elsewhere they `cd`. Never delete a
   worktree folder with `rm -rf`.
 - `diffwatch`: watch changes from the commit at launch, including later commits,
   without changing your staging area.
