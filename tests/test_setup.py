@@ -157,6 +157,10 @@ if alias code >/dev/null 2>&1; then exit 1; fi
         self.assert_success(result)
         self.assertEqual(result.stdout.strip(), "nvim")
 
+    def test_wt_tui_compiles(self):
+        source = (ROOT / "zsh/.config/zsh/wt_tui.py").read_text()
+        compile(source, "wt_tui.py", "exec")
+
     def test_wt_creates_lists_and_safely_removes_worktrees(self):
         wt = ["bash", str(ROOT / "zsh/.config/zsh/wt.sh")]
         self.env.update({

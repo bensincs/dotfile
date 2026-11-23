@@ -105,7 +105,8 @@ No account state or application preferences are committed.
 
 Rex uses Ctrl+A as a leader: then V splits right, H splits below, T opens a
 new tab, X closes the focused pane, P opens the command palette, N opens the
-notes pad as a popup (Ctrl+N appends the clipboard first), and arrow keys
+notes pad as a popup (Ctrl+N appends the clipboard first), W opens the
+worktree manager (`wt ui`), and arrow keys
 focus the pane in that direction. Ctrl+A twice sends a literal Ctrl+A to the
 terminal. Cmd pane/tab management shortcuts are disabled.
 
@@ -362,8 +363,11 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
   fully pushed worktrees and deletes the branch if merged; `wt prune` forgets
   worktrees whose folders are gone. Inside Rex, `new` and `go` open a background
   tab named `wt:<repo>/<worktree>` (`wt:<repo>/<branch>` for the main checkout)
-  without taking focus, and `rm` closes it; elsewhere they `cd`. Never delete a
-  worktree folder with `rm -rf`.
+  without taking focus (`wt go --focus` switches to it), and `rm` closes it;
+  elsewhere they `cd`. `wt ui` (Rex: Ctrl+A, then W) is a popup for the focused
+  pane's repo, or every repo under `~/worktrees` outside one: Enter opens and
+  switches, Backspace removes (same safety checks), N creates, R refreshes,
+  Q or Esc closes. Never delete a worktree folder with `rm -rf`.
 - `diffwatch`: watch changes from the commit at launch, including later commits,
   without changing your staging area.
 - `n`: open `~/notes/dump.md`; `n some text` or `command | n`: append. Override

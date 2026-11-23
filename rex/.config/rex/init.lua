@@ -74,6 +74,35 @@ rex.bind("ctrl+a>x", "pane.close")
 rex.bind("ctrl+a>p", "client.palette.toggle")
 rex.bind("ctrl+a>n", "notes")
 rex.bind("ctrl+a>ctrl+n", "notes", { clip = true })
+
+-- Ctrl+A, W opens the worktree manager (wt ui) for the focused pane's repository.
+local wt_script = os.getenv("HOME") .. "/.config/zsh/wt.sh"
+
+rex.action{
+  name = "worktrees",
+  title = "Manage Worktrees",
+  description = "Open wt ui for the focused pane's repository in a floating pane.",
+  run = function(ctx)
+    local process = rex.block.call("com.superlogical.terminal", "process", {
+      block_id = ctx.block_id,
+    })
+    local cwd = process and process.foreground and process.foreground.cwd
+      or os.getenv("HOME")
+    local result, err = rex.session.new_layer{
+      session_id = ctx.session_id,
+      bounds = { 0.15, 0.15, 0.7, 0.6 },
+      layout = rex.layout.block{
+        flavor = "com.superlogical.terminal.shell",
+        options = { command = { "bash", wt_script, "ui", cwd }, cwd = cwd },
+      },
+      focus = true,
+    }
+    if not result then error(err) end
+    return result
+  end,
+}
+
+rex.bind("ctrl+a>w", "worktrees")
 for _, direction in ipairs({ "left", "right", "up", "down" }) do
   rex.bind("ctrl+a>" .. direction, "pane.focus", { direction = direction })
 end

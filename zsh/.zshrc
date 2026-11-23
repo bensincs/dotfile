@@ -87,6 +87,14 @@ wt() {
       target="$(bash "$HOME/.config/zsh/wt.sh" "$@")" || return
       [[ -n "$target" && -d "$target" ]] && cd "$target"
       ;;
+    ui)
+      local choice target
+      choice="$(mktemp)"
+      WT_CHOICE_FILE="$choice" bash "$HOME/.config/zsh/wt.sh" "$@"
+      target="$(<"$choice")"
+      rm -f "$choice"
+      [[ -n "$target" && -d "$target" ]] && cd "$target"
+      ;;
     *) bash "$HOME/.config/zsh/wt.sh" "$@" ;;
   esac
 }

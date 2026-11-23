@@ -3,14 +3,15 @@
 #
 #   wt new <branch> [base]   create a worktree (and the branch if needed)
 #   wt ls                    list this repo's worktrees with their state
-#   wt go <name>             open a worktree (Rex tab, or cd outside Rex)
+#   wt go [--focus] <name>   open a worktree (Rex tab, or cd outside Rex)
 #   wt rm <name>             remove a clean, fully pushed worktree
 #   wt prune                 forget worktrees whose folders are already gone
+#   wt ui [dir]              manage worktrees in a TUI (Rex: Ctrl+A, then W)
 #
 # Worktrees live at ${WT_ROOT:-~/worktrees}/<repo>/<branch, with / as ->.
 # <name> is that folder name or the branch name. Inside Rex, `wt new` and `wt go`
-# open a background tab named wt:<repo>/<name> without taking focus. Outside Rex,
-# they print the path on stdout so the zsh `wt` function can cd into it.
+# open a background tab named wt:<repo>/<name>; `go --focus` also switches to it.
+# Outside Rex, they print the path on stdout so the zsh `wt` function can cd into it.
 set -euo pipefail
 
 root="${WT_ROOT:-$HOME/worktrees}"
@@ -19,7 +20,7 @@ die() { printf 'wt: %s\n' "$*" >&2; exit 1; }
 say() { printf '%s\n' "$*" >&2; }
 
 usage() {
-  sed -n '3,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+  sed -n '3,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 }
 
 slug() { printf '%s' "${1//\//-}"; }
@@ -79,20 +80,27 @@ tab_label() {
   printf 'wt:%s/%s' "$(basename "$repo")" "$name"
 }
 
-# Opens the worktree in a background Rex tab unless one is already open.
-# Outside Rex, prints the path.
+# Opens the worktree in a background Rex tab unless one is already open, then
+# switches the Rex app to it when asked. Outside Rex, prints the path.
 open_worktree() {
-  local repo="$1" path="$2" branch="${3:-}" label
+  local repo="$1" path="$2" branch="${3:-}" focus="${4:-}" label window
   if ! in_rex; then
     printf '%s\n' "$path"
     return 0
   fi
   label="$(tab_label "$repo" "$path" "$branch")"
-  if [[ -n "$(rex_window "$label")" ]]; then
-    say "already open in Rex tab '$label'"
+  window="$(rex_window "$label")"
+  if [[ -n "$window" ]]; then
+    [[ -n "$focus" ]] || say "already open in Rex tab '$label'"
   else
-    rex window new -s "$REX_SESSION" "$label" -c "$path" --focus=false >/dev/null
-    say "opened Rex tab '$label'"
+    window="$(rex window new -s "$REX_SESSION" "$label" -c "$path" --focus=false --json | jq -r '.window_id')"
+    [[ -n "$focus" ]] || say "opened Rex tab '$label'"
+  fi
+  if [[ -n "$focus" ]]; then
+    # session.select switches the app itself; rex focus only moves the server's focus.
+    rex do session.select session_id="$REX_SESSION" window_id="$window" >/dev/null 2>&1 ||
+      rex focus -s "$REX_SESSION" "$window" >/dev/null
+    say "switched to Rex tab '$label'"
   fi
 }
 
@@ -146,14 +154,19 @@ cmd_ls() {
 }
 
 cmd_go() {
-  [[ $# -eq 1 ]] || die "usage: wt go <name>"
+  local focus=""
+  if [[ "${1:-}" == "--focus" || "${1:-}" == "-f" ]]; then
+    focus=1
+    shift
+  fi
+  [[ $# -eq 1 ]] || die "usage: wt go [--focus] <name>"
   local repo found path branch
   repo="$(repo_dir)"
   found="$(resolve "$repo" "$1")"
   path="${found%%$'\t'*}"
   branch="${found#*$'\t'}"
   [[ -d "$path" ]] || die "$path is missing; run: wt prune"
-  open_worktree "$repo" "$path" "$branch"
+  open_worktree "$repo" "$path" "$branch" "$focus"
 }
 
 cmd_rm() {
@@ -204,6 +217,10 @@ case "$command" in
   go) cmd_go "$@" ;;
   rm | remove) cmd_rm "$@" ;;
   prune) cmd_prune "$@" ;;
+  ui)
+    python="$(command -v python3.11 || command -v python3)" || die "wt ui needs Python 3"
+    exec "$python" "$(dirname "${BASH_SOURCE[0]}")/wt_tui.py" "$@"
+    ;;
   "" | -h | --help | help) usage ;;
   *) usage; exit 2 ;;
 esac
