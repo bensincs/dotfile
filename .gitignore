@@ -5,3 +5,7 @@ __pycache__/
 # Machine-local shell overrides may contain credentials.
 .zshenv.local
 .zshrc.local
+
+# Generated per machine by "rex terminfo setup"; contains absolute paths.
+rex/.config/rex/ssh_config
+rex/.config/rex/terminfo-hosts

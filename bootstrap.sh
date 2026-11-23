@@ -106,6 +106,13 @@ if [ "$OS" = Linux ] && ! command -v rex >/dev/null 2>&1; then
   curl -fsSL https://pkgs.superlogical.com/rex/install.sh | sh
 fi
 
+# Install Rex's xterm-rex terminfo and the ssh guard that falls back to
+# xterm-256color on hosts without it. Safe to repeat.
+if command -v rex >/dev/null 2>&1; then
+  echo "▶ Setting up Rex terminfo..."
+  rex terminfo setup
+fi
+
 # ----------------------------
 # 7. Neovim plugins
 # ----------------------------

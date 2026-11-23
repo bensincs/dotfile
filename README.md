@@ -72,6 +72,12 @@ On Linux, bootstrap installs the Rex CLI when `rex` is missing using:
 curl -fsSL https://pkgs.superlogical.com/rex/install.sh | sh
 ```
 
+On both platforms, bootstrap then runs `rex terminfo setup`. It installs Rex's
+`xterm-rex` terminal type in `~/.terminfo`, writes an ssh guard to
+`~/.config/rex/ssh_config` (generated per machine and gitignored), and adds one `Include`
+line to the top of `~/.ssh/config` so ssh sends `xterm-256color` to hosts
+without `xterm-rex`. Check with `rex terminfo status`.
+
 The macOS client configuration in `rex/` is not stowed on Linux.
 
 #### Terminal client (macOS)

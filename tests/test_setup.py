@@ -254,6 +254,7 @@ esac
                 calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
                 self.assertNotIn("curl ", calls)
                 self.assertNotIn("uv tool install", calls)
+                self.assertEqual(calls.count("rex terminfo setup\n"), 2)
                 self.assertNotIn("tailscale up\n", calls)
                 self.assertNotIn("open -a Tailscale\n", calls)
                 if platform == "Linux":
