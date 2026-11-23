@@ -49,11 +49,14 @@ It performs these steps:
 
 1. Find or install Homebrew and load its environment.
 2. Trust the Brewfile's third-party taps and install/update its dependencies.
-3. Create real directories for Herdr, Pi, and Copilot runtime state.
+3. Create real directories for Herdr, the Herdr app (macOS), Pi, and Copilot
+   runtime state.
 4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
 5. Install Azure CLI with `uv tool` if `az` is missing (macOS and Linux).
-6. Restore the Neovim plugin versions from `lazy-lock.json`.
-7. Set up Tailscale: open the macOS app or start the Linux system service and
+6. Install herdr-core (`hc`) with its official installer if `herdr-core` is
+   missing (macOS and Linux; no Homebrew package exists).
+7. Restore the Neovim plugin versions from `lazy-lock.json`.
+8. Set up Tailscale: open the macOS app or start the Linux system service and
    connect, prompting for sign-in when needed.
 
 Rerunning bootstrap reapplies configuration and may upgrade packages. It does not
@@ -62,6 +65,78 @@ every language runtime. Tailscale setup may prompt for sudo, macOS permissions,
 and browser sign-in; other service sign-ins remain manual. Neovim installs language
 servers and Treesitter parsers on demand; those downloads are not all completed
 by bootstrap.
+
+### Rex terminal (macOS)
+
+Install Rex Beta manually; it is not installed by the Brewfile. Bootstrap stows
+`rex/` alongside Kitty on macOS and leaves Kitty unchanged. To link just Rex:
+
+```bash
+stow --target="$HOME" --simulate --verbose rex
+stow --target="$HOME" rex
+rex config reload
+```
+
+In Rex's command palette, run **Apply Kitty Style**. This imports the
+repo-managed Solarized Dark palette and sets JetBrainsMono Nerd Font Mono at
+13 pt, 8 pt padding, a left sidebar, a steady bar cursor, and copy-on-selection.
+Install the font from the Brewfile if it is missing. Text color remapping,
+contrast adjustment, and Display P3 are disabled to preserve application colors.
+
+Appearance settings are stored by Rex, not loaded automatically from `init.lua`.
+Run **Apply Kitty Style** again after changing the theme or style action.
+Alternatively, with Rex's Remote Control explicitly enabled, run
+`rex do kitty_style` (use `-C CLIENT` before `do` if several apps are connected).
+No account state or application preferences are committed.
+
+Rex uses Ctrl+A as a leader: then V splits right, H splits below, T opens a
+new tab, X closes the focused pane, P opens the command palette, and arrow keys
+focus the pane in that direction. Ctrl+A twice sends a literal Ctrl+A to the
+terminal. Cmd pane/tab management shortcuts are disabled.
+
+Shell editing, clipboard, and font-size shortcuts still match Kitty. Cmd+0–9
+send the same explicit CSI-u sequences for Pi model shortcuts, replacing Rex's
+default tab-selection and font-reset bindings. Rex does not document equivalents
+for Kitty's exact 95% opacity, blur radius, per-tab colors, or window geometry;
+those remain under Rex's own UI behavior. The macOS client style is not applied
+to Linux servers.
+
+### Herdr app and core
+
+The Brewfile installs the Herdr TUI (`herdr`) everywhere and the Herdr desktop
+app (`herdr-app` cask) on Apple Silicon Macs only; Intel Macs are not supported
+by the cask. herdr-core (`hc`), which runs the app's terminals, has no Homebrew
+package. Bootstrap installs it into `~/.local/bin` on macOS and Linux with the
+official installer, and `hc update` updates it.
+
+The macOS-only `herdr-app/` package links `~/.config/herdr-app/settings.json` and
+the `kitty-solarized-dark` theme. It uses Kitty's and Rex's exact Solarized Dark
+palette, JetBrainsMono Nerd Font Mono at 13 pt, dark appearance, and
+copy-on-selection. Bootstrap creates the app folder first, so the app's own state
+stays out of this repo. Settings changed in the app are written through the link
+into this repo; review them before committing. A theme picked in the app's theme
+picker overrides this setting for that layout. herdr-core draws nothing, so it has
+no color configuration.
+
+### Shared agent skills
+
+The `agents/` Stow package links the entire `.agents/` directory on macOS and
+Linux. Skills live at `~/.agents/skills/`, shared by Pi and other agents that
+support this location. This includes the former Pi-only skills and Rex's official
+skill. The Rex skill reads its guide from the installed Rex CLI; no separate
+skill installation is needed, but the CLI must be installed before using it.
+
+Back up an existing `~/.agents/` directory before linking, following the recovery
+instructions below. When migrating from the old Pi-only layout, remove only the
+old Stow-owned `~/.pi/agent/skills` symlink, never a real skills directory.
+
+```bash
+stow --target="$HOME" --simulate --verbose agents
+stow --target="$HOME" agents
+```
+
+Run `/reload` in Pi to discover the shared skills. Changes under `~/.agents/`
+now land in this repo; review them before committing.
 
 ### Existing dotfiles and recovery
 
@@ -256,22 +331,25 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | --- | --- |
 | `bootstrap.sh` | Installation order and active Stow packages |
 | `Brewfile` | Homebrew, macOS cask, and global npm dependencies |
+| `agents/` | Shared agent skills, including Rex and vendored Cloudflare references |
 | `bottom/` | Compact graph layout (`btm -C ~/.config/bottom/graphs.toml`) |
 | `copilot/` | Copilot CLI preferences |
 | `diffnav/` | Diff viewer layout and theme |
 | `git/` | Identity, GitHub credentials, Delta, global ignores |
 | `herdr/` | Multiplexer, keybindings, notifications, session restore |
+| `herdr-app/` | macOS Herdr app settings and Kitty Solarized Dark theme |
 | `kitty/` | macOS terminal, font, palette, Cmd+digit escape sequences |
 | `nvim/` | Editor, pinned plugins, LSP, Treesitter, notes pad |
-| `pi/` | Agent instructions, MCP servers, package, model shortcuts, skills |
+| `pi/` | Pi instructions, MCP servers, package, and model shortcuts |
+| `rex/` | macOS Rex shortcuts, Kitty palette, Apply Kitty Style action |
 | `starship/` | Prompt configuration |
 | `tmux/` | Multiplexer configuration, Ctrl+A prefix |
 | `zsh/` | Shell startup files and helper scripts |
 | `tests/` | Isolated setup regression checks |
 
-Bootstrap stows every tool package except Kitty on Linux. Pi's Cloudflare skills
-are vendored reference material with their own `LICENSE`; do not edit them as part
-of routine machine setup. Application-written settings are symlinked too: inspect
+Bootstrap stows every tool package except Kitty, Rex, and the Herdr app on Linux. The Cloudflare
+skills under `agents/.agents/skills/cloudflare-skills/` are vendored reference
+material with their own `LICENSE`; do not edit them as part of routine machine setup. Application-written settings are symlinked too: inspect
 `git diff` after using tools that update their own configuration.
 
 ## Daily commands
@@ -287,7 +365,7 @@ of routine machine setup. Application-written settings are symlinked too: inspec
   with `NOTES_FILE`. Ctrl+Q closes the pad; Ctrl+E toggles its file tree.
   Herdr: Ctrl+A, then N opens the pad. Ctrl+A, then Ctrl+N also captures the
   clipboard first; clipboard capture uses macOS `pbpaste` and is macOS-only.
-- Kitty Cmd+digit selects configured Pi model shortcuts; edit
+- Kitty and Rex Cmd+digit select configured Pi model shortcuts; edit
   `pi/.pi/agent/model-shortcuts.json`, then `/reload` in Pi.
 - Pi: `/skill:fluent-ui redesign this screen` converts an existing UI to real
   Fluent UI components. It requires Stagehand task checks, Playwright assertions

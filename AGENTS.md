@@ -11,9 +11,10 @@ packages; GNU Stow links configuration into `$HOME`.
 - Tool directories: Stow packages mirroring their home-directory layout.
 - `tests/`: isolated setup regression tests.
 
-Packages: bottom, copilot, diffnav, git, herdr, kitty, nvim, pi, starship, tmux,
-zsh. Kitty is macOS-only. Pi's Cloudflare skills are vendored reference material
-with their own license; do not rewrite them during setup maintenance.
+Packages: agents, bottom, copilot, diffnav, git, herdr, herdr-app, kitty, nvim,
+pi, rex, starship, tmux, zsh. Kitty, Rex, and herdr-app are macOS-only. Shared skills live in
+`agents/.agents/skills/`. Cloudflare skills are vendored reference material with
+their own license; do not rewrite them during setup maintenance.
 
 Do not duplicate the README's environment inventory here. Update the README when
 setup behavior, dependencies, platform support, or manual steps change.

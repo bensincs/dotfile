@@ -14,6 +14,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 ZSH = shutil.which("zsh")
 STOW = shutil.which("stow")
+REX = shutil.which("rex")
 
 
 class SetupTests(unittest.TestCase):
@@ -56,7 +57,7 @@ class SetupTests(unittest.TestCase):
                     self.assert_success(self.run_command(["bash", "-n"], input=block))
 
     def test_configuration_formats(self):
-        for package in ("pi", "copilot", "nvim", "herdr", "starship", "bottom"):
+        for package in ("pi", "copilot", "nvim", "herdr", "herdr-app", "starship", "bottom"):
             for path in (ROOT / package).rglob("*"):
                 if "skills" in path.parts or path.suffix not in (".json", ".toml"):
                     continue
@@ -66,14 +67,48 @@ class SetupTests(unittest.TestCase):
                     else:
                         tomllib.load(source)
 
-    def test_only_herdr_tui_is_configured(self):
+    def test_rex_palette_matches_kitty(self):
+        kitty = (ROOT / "kitty/.config/kitty/kitty.conf").read_text()
+        theme = (ROOT / "rex/.config/rex/themes/Kitty Solarized Dark").read_text()
+        colors = dict(re.findall(r"^(\w+)\s+(#[0-9a-f]{6})$", kitty, re.MULTILINE))
+        palette = dict(re.findall(r"^palette = (\d+)=(#[0-9a-f]{6})$", theme, re.MULTILINE))
+        self.assertEqual(len(palette), 16)
+        for index in range(16):
+            self.assertEqual(palette[str(index)], colors["color" + str(index)])
+        for rex_key, kitty_key in (
+            ("background", "background"), ("foreground", "foreground"),
+            ("cursor-color", "cursor"), ("cursor-text", "cursor_text_color"),
+        ):
+            self.assertIn(rex_key + " = " + colors[kitty_key], theme)
+
+    @unittest.skipUnless(REX, "requires Rex")
+    def test_rex_configuration_loads_without_errors(self):
+        result = self.run_command([
+            REX, "config", "check", str(ROOT / "rex/.config/rex/init.lua"),
+        ])
+        self.assert_success(result)
+        self.assertNotIn("warning", result.stdout.lower() + result.stderr.lower())
+
+    def test_herdr_tui_app_and_core_are_configured(self):
         brewfile = (ROOT / "Brewfile").read_text()
         bootstrap = (ROOT / "bootstrap.sh").read_text()
         self.assertIn('brew "herdr"', brewfile)
-        self.assertNotIn('cask "herdr-app"', brewfile)
-        self.assertNotIn("releases.herdr.dev/core/", bootstrap)
-        self.assertNotIn("\n  herdr-app\n", bootstrap)
-        self.assertFalse((ROOT / "herdr-app").exists())
+        self.assertIn('cask "herdr-app" if OS.mac? && Hardware::CPU.arm?', brewfile)
+        self.assertIn("https://releases.herdr.dev/core/install.sh", bootstrap)
+        self.assertIn("STOW_PACKAGES+=(kitty rex herdr-app)", bootstrap)
+
+    def test_herdr_app_palette_matches_kitty(self):
+        kitty = (ROOT / "kitty/.config/kitty/kitty.conf").read_text()
+        colors = dict(re.findall(r"^(\w+)\s+(#[0-9a-f]{6})$", kitty, re.MULTILINE))
+        app = ROOT / "herdr-app/.config/herdr-app"
+        theme = json.loads((app / "themes/kitty-solarized-dark.json").read_text())
+        settings = json.loads((app / "settings.json").read_text())
+        self.assertEqual(theme["ansi"], [colors["color" + str(i)] for i in range(16)])
+        self.assertEqual(theme["background"], colors["background"])
+        self.assertEqual(theme["foreground"], colors["foreground"])
+        self.assertEqual(theme["cursor"], colors["cursor"])
+        self.assertEqual(settings["theme"], "kitty-solarized-dark")
+        self.assertEqual(settings["font"], "JetBrainsMono Nerd Font Mono")
 
     @unittest.skipUnless(ZSH, "requires zsh")
     def test_shell_path_history_and_local_overrides(self):
@@ -174,9 +209,17 @@ printf '%s %s\\n' "${0##*/}" "$*" >> "$TEST_BOOTSTRAP_LOG"
 '''
         scripts = {
             name: "exit 0\n"
-            for name in ("brew", "az", "uv", "nvim", "open", "sleep")
+            for name in ("brew", "az", "uv", "nvim", "open", "sleep", "herdr-core")
         }
-        scripts["curl"] = "exit 99\n"
+        # Only the herdr-core installer test supplies a download; anything else fails.
+        scripts["curl"] = '''if [ -n "${TEST_CURL_INSTALLER:-}" ]; then
+  while [ $# -gt 0 ]; do
+    if [ "$1" = -o ]; then printf '%s\\n' "$TEST_CURL_INSTALLER" > "$2"; exit 0; fi
+    shift
+  done
+fi
+exit 99
+'''
         scripts["tailscale"] = '''case "$*" in
   "status --json") exit "${TEST_TAILSCALE_READY_STATUS:-0}" ;;
   status) exit "${TEST_TAILSCALE_STATUS:-0}" ;;
@@ -215,7 +258,25 @@ esac
                 for relative in (".config/herdr", ".pi/agent", ".copilot"):
                     self.assertTrue((home / relative).is_dir())
                     self.assertFalse((home / relative).is_symlink())
-                self.assertEqual((home / ".config/kitty").exists(), platform == "Darwin")
+                for package in ("kitty", "rex"):
+                    self.assertEqual((home / ".config" / package).exists(), platform == "Darwin")
+                app = home / ".config/herdr-app"
+                self.assertEqual(app.exists(), platform == "Darwin")
+                if platform == "Darwin":
+                    for relative in ("", "themes"):
+                        self.assertTrue((app / relative).is_dir())
+                        self.assertFalse((app / relative).is_symlink())
+                    for relative in ("settings.json", "themes/kitty-solarized-dark.json"):
+                        self.assertEqual(
+                            (app / relative).resolve(),
+                            ROOT / "herdr-app/.config/herdr-app" / relative,
+                        )
+                self.assertEqual((home / ".agents").resolve(), ROOT / "agents/.agents")
+                self.assertTrue((home / ".agents").is_symlink())
+                self.assertFalse((home / ".pi/agent/skills").exists())
+                for skill in (ROOT / "agents/.agents/skills").rglob("SKILL.md"):
+                    relative = skill.relative_to(ROOT / "agents")
+                    self.assertEqual((home / relative).resolve(), skill)
                 for path in home.rglob("*"):
                     if path.is_symlink():
                         self.assertTrue(path.exists(), str(path))
@@ -251,6 +312,30 @@ source "$1"
                 self.assert_success(result)
                 calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
                 self.assertEqual(calls.count("uv tool install -q azure-cli\n"), 1)
+
+    @unittest.skipUnless(STOW, "requires GNU Stow")
+    def test_bootstrap_installs_missing_herdr_core_on_both_platforms(self):
+        script = '''
+command() {
+  if [ "$*" = "-v herdr-core" ]; then return 1; fi
+  builtin command "$@"
+}
+source "$1"
+'''
+        self.env["TEST_CURL_INSTALLER"] = 'printf "herdr-core installer\\n" >> "$TEST_BOOTSTRAP_LOG"'
+        for platform in ("Linux", "Darwin"):
+            with self.subTest(platform=platform):
+                home = self.work / platform
+                home.mkdir()
+                self.env["HOME"] = str(home)
+                self.mock_bootstrap_tools(platform)
+                result = self.run_command([
+                    "bash", "-c", script, "test", str(ROOT / "bootstrap.sh"),
+                ])
+                self.assert_success(result)
+                calls = Path(self.env["TEST_BOOTSTRAP_LOG"]).read_text()
+                self.assertIn("curl -fsSL https://releases.herdr.dev/core/install.sh -o ", calls)
+                self.assertEqual(calls.count("herdr-core installer\n"), 1)
 
     @unittest.skipUnless(STOW, "requires GNU Stow")
     def test_bootstrap_tailscale_connects_when_needed(self):

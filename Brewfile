@@ -72,7 +72,9 @@ brew "pre-commit"
 brew "tmux"
 
 # --- Agent multiplexer ---
-brew "herdr"
+brew "herdr" # TUI
+# Desktop app; Apple Silicon only. herdr-core (hc) has no Homebrew package: bootstrap.sh installs it.
+cask "herdr-app" if OS.mac? && Hardware::CPU.arm?
 
 # --- Coding agents ---
 brew "pi-coding-agent"
@@ -97,6 +99,7 @@ if OS.mac?
   cask "visual-studio-code@insiders"     # code-insiders CLI and GUI editor
   brew "terminal-notifier"              # herdr [ui.toast] delivery = "system"
   cask "kitty"                          # terminal
+  # Rex Beta is installed manually; see README.md.
   cask "handy"
   cask "font-jetbrains-mono-nerd-font"
 end

@@ -64,8 +64,10 @@ cd "$DOTFILES_DIR"
 # Directories apps write their own state into must be real, not stow-folded symlinks into this
 # repo (on a fresh machine stow would otherwise link the whole directory).
 mkdir -p "$HOME/.config/herdr" "$HOME/.pi/agent" "$HOME/.copilot"
+[ "$OS" = Darwin ] && mkdir -p "$HOME/.config/herdr-app/themes"
 
 STOW_PACKAGES=(
+  agents
   bottom
   diffnav
   git
@@ -77,7 +79,7 @@ STOW_PACKAGES=(
   herdr
   copilot
 )
-[ "$OS" = Darwin ] && STOW_PACKAGES+=(kitty)
+[ "$OS" = Darwin ] && STOW_PACKAGES+=(kitty rex herdr-app)
 
 # Check the complete set before linking anything. Never adopt or overwrite
 # existing dotfiles automatically; the README explains how to back them up.
@@ -99,7 +101,19 @@ if ! command -v az >/dev/null 2>&1; then
 fi
 
 # ----------------------------
-# 6. Neovim plugins
+# 6. herdr-core (not available in Homebrew)
+# ----------------------------
+# The official installer verifies the download's SHA-256 and, on macOS, its signature.
+if ! command -v herdr-core >/dev/null 2>&1; then
+  echo "▶ Installing herdr-core (official installer)..."
+  installer="$(mktemp)"
+  curl -fsSL https://releases.herdr.dev/core/install.sh -o "$installer"
+  sh "$installer"
+  rm -f "$installer"
+fi
+
+# ----------------------------
+# 7. Neovim plugins
 # ----------------------------
 # Installs the versions pinned in nvim/.config/nvim/lazy-lock.json.
 if command -v nvim >/dev/null 2>&1; then
@@ -110,7 +124,7 @@ else
 fi
 
 # ----------------------------
-# 7. Tailscale
+# 8. Tailscale
 # ----------------------------
 if [ "$OS" = Darwin ]; then
   if ! tailscale status >/dev/null 2>&1; then
