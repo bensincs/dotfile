@@ -49,14 +49,11 @@ It performs these steps:
 
 1. Find or install Homebrew and load its environment.
 2. Trust the Brewfile's third-party taps and install/update its dependencies.
-3. Create real directories for Herdr, the Herdr app (macOS), Pi, and Copilot
-   runtime state.
+3. Create real directories for Herdr, Pi, and Copilot runtime state.
 4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
 5. Install Azure CLI with `uv tool` if `az` is missing (macOS and Linux).
-6. Install herdr-core (`hc`) with its official installer if `herdr-core` is
-   missing (macOS and Linux; no Homebrew package exists).
-7. Restore the Neovim plugin versions from `lazy-lock.json`.
-8. Set up Tailscale: open the macOS app or start the Linux system service and
+6. Restore the Neovim plugin versions from `lazy-lock.json`.
+7. Set up Tailscale: open the macOS app or start the Linux system service and
    connect, prompting for sign-in when needed.
 
 Rerunning bootstrap reapplies configuration and may upgrade packages. It does not
@@ -100,23 +97,6 @@ default tab-selection and font-reset bindings. Rex does not document equivalents
 for Kitty's exact 95% opacity, blur radius, per-tab colors, or window geometry;
 those remain under Rex's own UI behavior. The macOS client style is not applied
 to Linux servers.
-
-### Herdr app and core
-
-The Brewfile installs the Herdr TUI (`herdr`) everywhere and the Herdr desktop
-app (`herdr-app` cask) on Apple Silicon Macs only; Intel Macs are not supported
-by the cask. herdr-core (`hc`), which runs the app's terminals, has no Homebrew
-package. Bootstrap installs it into `~/.local/bin` on macOS and Linux with the
-official installer, and `hc update` updates it.
-
-The macOS-only `herdr-app/` package links `~/.config/herdr-app/settings.json` and
-the `kitty-solarized-dark` theme. It uses Kitty's and Rex's exact Solarized Dark
-palette, JetBrainsMono Nerd Font Mono at 13 pt, dark appearance, and
-copy-on-selection. Bootstrap creates the app folder first, so the app's own state
-stays out of this repo. Settings changed in the app are written through the link
-into this repo; review them before committing. A theme picked in the app's theme
-picker overrides this setting for that layout. herdr-core draws nothing, so it has
-no color configuration.
 
 ### Shared agent skills
 
@@ -337,7 +317,6 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | `diffnav/` | Diff viewer layout and theme |
 | `git/` | Identity, GitHub credentials, Delta, global ignores |
 | `herdr/` | Multiplexer, keybindings, notifications, session restore |
-| `herdr-app/` | macOS Herdr app settings and Kitty Solarized Dark theme |
 | `kitty/` | macOS terminal, font, palette, Cmd+digit escape sequences |
 | `nvim/` | Editor, pinned plugins, LSP, Treesitter, notes pad |
 | `pi/` | Pi instructions, MCP servers, package, and model shortcuts |
@@ -347,7 +326,7 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | `zsh/` | Shell startup files and helper scripts |
 | `tests/` | Isolated setup regression checks |
 
-Bootstrap stows every tool package except Kitty, Rex, and the Herdr app on Linux. The Cloudflare
+Bootstrap stows every tool package except Kitty and Rex on Linux. The Cloudflare
 skills under `agents/.agents/skills/cloudflare-skills/` are vendored reference
 material with their own `LICENSE`; do not edit them as part of routine machine setup. Application-written settings are symlinked too: inspect
 `git diff` after using tools that update their own configuration.

@@ -72,9 +72,7 @@ brew "pre-commit"
 brew "tmux"
 
 # --- Agent multiplexer ---
-brew "herdr" # TUI
-# Desktop app; Apple Silicon only. herdr-core (hc) has no Homebrew package: bootstrap.sh installs it.
-cask "herdr-app" if OS.mac? && Hardware::CPU.arm?
+brew "herdr"
 
 # --- Coding agents ---
 brew "pi-coding-agent"
