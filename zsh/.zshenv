@@ -32,6 +32,17 @@ if [[ -z "${EDITOR:-}" ]]; then
   fi
 fi
 
+# ---- Rex completion ----
+# Before SDKMAN, which runs compinit; cached and regenerated when rex changes.
+if command -v rex >/dev/null 2>&1; then
+  _rex_completions="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/completions"
+  if [[ ! -s "$_rex_completions/_rex" || "$(command -v rex)" -nt "$_rex_completions/_rex" ]]; then
+    mkdir -p "$_rex_completions" && rex completion zsh >| "$_rex_completions/_rex" 2>/dev/null
+  fi
+  fpath=("$_rex_completions" $fpath)
+  unset _rex_completions
+fi
+
 # ---- SDKMAN (Java, Maven, Gradle, etc.) ----
 export SDKMAN_DIR="$HOME/.sdkman"
 [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"

@@ -9,7 +9,6 @@ export ZSH="$HOME/.zsh"
 # ---- Starship Prompt ----
 if command -v starship >/dev/null 2>&1; then
   eval "$(starship init zsh)"
-  export STARSHIP_TMUX_SHOW_VERSION=false
 fi
 
 # ---- History ----
@@ -42,6 +41,26 @@ bindkey "^[f" forward-word
 # ---- Completion ----
 autoload -Uz compinit
 compinit
+
+# ---- Working directory reporting ----
+# OSC 7 tells the terminal (Rex, Kitty) the shell's directory, for tab titles and
+# for new tabs and splits that start where this shell is.
+__report_cwd() {
+  emulate -L zsh
+  local LC_ALL=C url="" ch i
+  for (( i = 1; i <= ${#PWD}; i++ )); do
+    ch="${PWD[i]}"
+    if [[ "$ch" == [A-Za-z0-9/._~-] ]]; then
+      url+="$ch"
+    else
+      url+="$(printf '%%%02X' "'$ch")"
+    fi
+  done
+  printf '\e]7;file://%s%s\e\\' "$HOST" "$url"
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook chpwd __report_cwd
+__report_cwd
 
 # ---- Aliases ----
 
@@ -99,21 +118,6 @@ wt() {
   esac
 }
 
-# tmux - attach/switch to session defined by TMUX_SESSION env var (set via direnv) or default to 'main'
-tm() {
-  local session="${TMUX_SESSION:-main}"
-  if [[ -n "$TMUX" ]]; then
-    # Already in tmux, switch to the session (create in detached mode if needed)
-    if ! tmux has-session -t "$session" 2>/dev/null; then
-      tmux new-session -d -s "$session"
-    fi
-    tmux switch-client -t "$session"
-  else
-    # Not in tmux, attach or create new session
-    tmux attach -t "$session" || tmux new -s "$session"
-  fi
-}
-
 # n - live-synced notes pad. Works in any number of terminals or Rex panes.
 #   n              open the pad
 #   n some text    append a line without opening it
@@ -121,9 +125,6 @@ tm() {
 n() {
   bash "$HOME/.config/zsh/notes.sh" "$@"
 }
-
-# tmux detach
-alias tmd="tmux detach"
 
 # kubernetes
 alias k="kubectl"

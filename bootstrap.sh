@@ -74,7 +74,6 @@ STOW_PACKAGES=(
   pi
   starship
   zsh
-  tmux
   copilot
 )
 [ "$OS" = Darwin ] && STOW_PACKAGES+=(kitty rex)

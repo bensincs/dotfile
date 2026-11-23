@@ -89,10 +89,11 @@ class SetupTests(unittest.TestCase):
         self.assert_success(result)
         self.assertNotIn("warning", result.stdout.lower() + result.stderr.lower())
 
-    def test_herdr_is_not_configured(self):
-        for name in ("Brewfile", "bootstrap.sh", "README.md", "AGENTS.md"):
-            self.assertNotIn("herdr", (ROOT / name).read_text().lower(), name)
-        self.assertFalse((ROOT / "herdr").exists())
+    def test_retired_tools_are_not_configured(self):
+        for tool in ("herdr", "tmux"):
+            for name in ("Brewfile", "bootstrap.sh", "README.md", "AGENTS.md", "zsh/.zshrc"):
+                self.assertNotIn(tool, (ROOT / name).read_text().lower(), name)
+            self.assertFalse((ROOT / tool).exists())
         self.assertFalse((ROOT / "herdr-app").exists())
 
     @unittest.skipUnless(ZSH, "requires zsh")
@@ -446,7 +447,6 @@ source "$1"
         self.assertIn("No packages were stowed", result.stderr)
         self.assertEqual((self.home / ".zshrc").read_text(), original)
         self.assertFalse((self.home / ".gitconfig").is_symlink())
-        self.assertFalse((self.home / ".tmux.conf").is_symlink())
         self.assertFalse((self.home / ".config/nvim").is_symlink())
 
 

@@ -340,7 +340,6 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | `pi/` | Pi instructions, MCP servers, package, and model shortcuts |
 | `rex/` | macOS Rex shortcuts, Kitty palette, Apply Kitty Style action |
 | `starship/` | Prompt configuration |
-| `tmux/` | Multiplexer configuration, Ctrl+A prefix |
 | `zsh/` | Shell startup files and helper scripts |
 | `tests/` | Isolated setup regression checks |
 
@@ -352,10 +351,10 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
 ## Daily commands
 
 - `ll`, `lt`, `la`: eza listings; `cat`: bat; `grep`: ripgrep.
+- `rex` has tab completion, cached in `~/.cache/zsh/completions` and regenerated
+  when Rex updates. The shell reports its directory to the terminal (OSC 7), so
+  Rex tab titles and new tabs and splits follow it.
 - `z` / `cd`: zoxide navigation. `gs`, `gp`: Git status and pull. `k`: kubectl.
-- `tm`: attach/switch to `$TMUX_SESSION`, defaulting to `main`; `tmd`: detach.
-  Set `export TMUX_SESSION=myapp` in a project's `.envrc` and run `direnv allow`
-  for a project-specific session. Nothing auto-attaches at shell startup.
 - `wt`: git worktrees at `~/worktrees/<repo>/<branch>` (override with `WT_ROOT`).
   `wt new <branch> [base]` creates one from the fresh default branch (or an
   existing local/remote branch); `wt go <name>` opens it; `wt ls` shows each

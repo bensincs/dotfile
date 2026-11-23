@@ -68,9 +68,6 @@ brew "python@3.11"
 # --- Dev tooling ---
 brew "pre-commit"
 
-# --- Terminal multiplexer ---
-brew "tmux"
-
 # --- Coding agents ---
 brew "pi-coding-agent"
 
