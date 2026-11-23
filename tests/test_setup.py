@@ -138,6 +138,7 @@ source "$1/zsh/.zshrc" || exit 1
 [[ "$EDITOR" == nvim ]] || exit 1
 if alias code >/dev/null 2>&1; then exit 1; fi
 (( ${+functions[diffwatch]} )) || exit 1
+(( ${+functions[wt]} )) || exit 1
 (( ! ${+functions[oc]} && ! ${+functions[aicode]} )) || exit 1
 '''
         self.assert_success(self.run_command([ZSH, "-d", "-f", "-c", script, "test", str(ROOT)]))
@@ -155,6 +156,57 @@ if alias code >/dev/null 2>&1; then exit 1; fi
         ])
         self.assert_success(result)
         self.assertEqual(result.stdout.strip(), "nvim")
+
+    def test_wt_creates_lists_and_safely_removes_worktrees(self):
+        wt = ["bash", str(ROOT / "zsh/.config/zsh/wt.sh")]
+        self.env.update({
+            "WT_ROOT": str(self.work / "worktrees"),
+            "GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.com",
+            "GIT_COMMITTER_NAME": "Test", "GIT_COMMITTER_EMAIL": "test@example.com",
+        })
+        self.env.pop("REX_SESSION", None)
+        remote, repo = self.work / "remote.git", self.work / "app"
+        for command in (
+            ["git", "init", "-q", "--bare", "-b", "main", str(remote)],
+            ["git", "clone", "-q", str(remote), str(repo)],
+            ["git", "-C", str(repo), "commit", "-q", "--allow-empty", "-m", "init"],
+            ["git", "-C", str(repo), "push", "-q", "origin", "HEAD:main"],
+            ["git", "-C", str(repo), "remote", "set-head", "origin", "main"],
+        ):
+            self.assert_success(self.run_command(command))
+
+        def run(*args, cwd=repo):
+            return subprocess.run(
+                wt + list(args), cwd=cwd, env=self.env, text=True,
+                capture_output=True, timeout=30,
+            )
+
+        created = run("new", "feat/thing")
+        self.assert_success(created)
+        path = self.work / "worktrees/app/feat-thing"
+        self.assertEqual(created.stdout.strip(), str(path))
+        self.assertTrue((path / ".git").is_file())
+        self.assertIn(str(path), run("go", "feat/thing").stdout)
+
+        (path / "draft.txt").write_text("unsaved")
+        self.assertIn("1 uncommitted", run("ls").stdout)
+        refused = run("rm", "feat-thing")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("uncommitted", refused.stderr)
+        self.assertTrue((path / "draft.txt").exists())
+
+        self.assert_success(self.run_command(["git", "-C", str(path), "add", "draft.txt"]))
+        self.assert_success(self.run_command(["git", "-C", str(path), "commit", "-q", "-m", "draft"]))
+        refused = run("rm", "feat-thing")
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertIn("unpushed", refused.stderr)
+
+        self.assert_success(self.run_command(["git", "-C", str(path), "push", "-q", "origin", "feat/thing"]))
+        removed = run("rm", "feat-thing")
+        self.assert_success(removed)
+        self.assertFalse(path.exists())
+        self.assertIn("kept branch feat/thing", removed.stderr)
+        self.assertNotEqual(run("rm", "app").returncode, 0)
 
     def test_whatsapp_is_not_in_shared_pi_settings(self):
         settings = json.loads((ROOT / "pi/.pi/agent/settings.json").read_text())

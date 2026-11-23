@@ -41,11 +41,39 @@ rex.bind("cmd+shift+=", "client.font.increase")
 rex.bind("cmd+-", "client.font.decrease")
 
 -- Ctrl+A leader: split right, split below, open a tab, or close a pane.
+-- Ctrl+A, N opens the notes pad as a popup; Ctrl+A, Ctrl+N appends the clipboard first.
+-- Quit the pad with Ctrl+Q to close the popup.
+local notes_script = os.getenv("HOME") .. "/.config/zsh/notes.sh"
+
+rex.action{
+  name = "notes",
+  title = "Open Notes Pad",
+  description = "Open the live-synced notes pad in a floating pane.",
+  args = { clip = "boolean?" },
+  run = function(ctx, args)
+    local command = { "bash", notes_script }
+    if args and args.clip then table.insert(command, "--clip") end
+    local result, err = rex.session.new_layer{
+      session_id = ctx.session_id,
+      bounds = { 0.1, 0.1, 0.8, 0.8 },
+      layout = rex.layout.block{
+        flavor = "com.superlogical.terminal.shell",
+        options = { command = command },
+      },
+      focus = true,
+    }
+    if not result then error(err) end
+    return result
+  end,
+}
+
 rex.bind("ctrl+a>v", "pane.split", { direction = "right" })
 rex.bind("ctrl+a>h", "pane.split", { direction = "down" })
 rex.bind("ctrl+a>t", "client.tab.new")
 rex.bind("ctrl+a>x", "pane.close")
 rex.bind("ctrl+a>p", "client.palette.toggle")
+rex.bind("ctrl+a>n", "notes")
+rex.bind("ctrl+a>ctrl+n", "notes", { clip = true })
 for _, direction in ipairs({ "left", "right", "up", "down" }) do
   rex.bind("ctrl+a>" .. direction, "pane.focus", { direction = direction })
 end

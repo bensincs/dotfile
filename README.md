@@ -104,7 +104,8 @@ Alternatively, with Rex's Remote Control explicitly enabled, run
 No account state or application preferences are committed.
 
 Rex uses Ctrl+A as a leader: then V splits right, H splits below, T opens a
-new tab, X closes the focused pane, P opens the command palette, and arrow keys
+new tab, X closes the focused pane, P opens the command palette, N opens the
+notes pad as a popup (Ctrl+N appends the clipboard first), and arrow keys
 focus the pane in that direction. Ctrl+A twice sends a literal Ctrl+A to the
 terminal. Cmd pane/tab management shortcuts are disabled.
 
@@ -354,11 +355,21 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
 - `tm`: attach/switch to `$TMUX_SESSION`, defaulting to `main`; `tmd`: detach.
   Set `export TMUX_SESSION=myapp` in a project's `.envrc` and run `direnv allow`
   for a project-specific session. Nothing auto-attaches at shell startup.
+- `wt`: git worktrees at `~/worktrees/<repo>/<branch>` (override with `WT_ROOT`).
+  `wt new <branch> [base]` creates one from the fresh default branch (or an
+  existing local/remote branch); `wt go <name>` opens it; `wt ls` shows each
+  worktree's uncommitted and unpushed counts; `wt rm <name>` removes only clean,
+  fully pushed worktrees and deletes the branch if merged; `wt prune` forgets
+  worktrees whose folders are gone. Inside Rex, `new` and `go` open or focus a tab
+  named after the worktree, and `rm` closes it; elsewhere they `cd`. Never delete a
+  worktree folder with `rm -rf`.
 - `diffwatch`: watch changes from the commit at launch, including later commits,
   without changing your staging area.
 - `n`: open `~/notes/dump.md`; `n some text` or `command | n`: append. Override
   with `NOTES_FILE`. Ctrl+Q closes the pad; Ctrl+E toggles its file tree.
-  `n --clip` appends the clipboard first (macOS `pbpaste` only).
+  `n --clip` appends the clipboard first (macOS `pbpaste` only). In Rex, Ctrl+A
+  then N opens the pad as a floating popup (also **Open Notes Pad** in the
+  palette); Ctrl+A then Ctrl+N appends the clipboard first.
 - Kitty and Rex Cmd+digit select configured Pi model shortcuts; edit
   `pi/.pi/agent/model-shortcuts.json`, then `/reload` in Pi.
 - Pi: `/skill:fluent-ui redesign this screen` converts an existing UI to real

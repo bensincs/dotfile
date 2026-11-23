@@ -78,6 +78,19 @@ diffwatch() {
   bash "$HOME/.config/zsh/diffwatch.sh" "$@"
 }
 
+# wt - git worktrees under ~/worktrees/<repo>/<branch>, each in its own Rex tab.
+# Outside Rex, `wt new` and `wt go` cd into the worktree instead.
+wt() {
+  case "${1:-}" in
+    new | go)
+      local target
+      target="$(bash "$HOME/.config/zsh/wt.sh" "$@")" || return
+      [[ -n "$target" && -d "$target" ]] && cd "$target"
+      ;;
+    *) bash "$HOME/.config/zsh/wt.sh" "$@" ;;
+  esac
+}
+
 # tmux - attach/switch to session defined by TMUX_SESSION env var (set via direnv) or default to 'main'
 tm() {
   local session="${TMUX_SESSION:-main}"
