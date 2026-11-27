@@ -1,6 +1,7 @@
 # Local dependencies and validation artifacts
 node_modules/
 __pycache__/
+/demos/
 
 # Machine-local shell overrides may contain credentials.
 .zshenv.local
