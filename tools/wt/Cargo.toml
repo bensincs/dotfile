@@ -1,0 +1,11 @@
+[package]
+name = "wt"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+crossterm = "0.29"
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }
+serde_json = "1"
+signal-hook = "0.4"

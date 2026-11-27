@@ -9,7 +9,8 @@ packages; GNU Stow links configuration into `$HOME`.
 - `Brewfile`: package dependencies and platform-specific applications.
 - `bootstrap.sh`: installation order and the authoritative `STOW_PACKAGES` list.
 - Tool directories: Stow packages mirroring their home-directory layout.
-- `tests/`: isolated setup regression tests.
+- `tools/`: Rust CLI source workspace; not a Stow package. Commit `Cargo.lock`,
+  not binaries. `scripts/install-rust-tools.sh` builds and installs these tools.
 
 Packages: agents, bottom, copilot, diffnav, git, kitty, nvim, pi, rex, starship,
 zsh. Kitty and Rex configuration are macOS-only; bootstrap installs
@@ -35,21 +36,11 @@ setup behavior, dependencies, platform support, or manual steps change.
 
 ## Checks
 
-Run from the repository root with Python 3.11+ (included in the Brewfile):
-
-```bash
-python3.11 -m unittest discover -s tests -v
-```
-
-Tests use temporary home directories, real Stow, and mocked package-manager,
-account-CLI, and Neovim commands. They do not provision a machine. Zsh and Stow
-must be installed to run their tests rather than skip them.
-
 For syntax-only checks:
 
 ```bash
 bash -n bootstrap.sh
-for file in zsh/.config/zsh/*.sh; do bash -n "$file"; done
+for file in scripts/*.sh zsh/.local/bin/*; do bash -n "$file"; done
 zsh -n zsh/.zshenv
 zsh -n zsh/.zshrc
 ```
@@ -90,7 +81,7 @@ interactive configuration check. Report fresh-OS and platform testing limits.
 2. Add configuration in a directory mirroring its target home-directory paths.
 3. Add that package to `STOW_PACKAGES` in `bootstrap.sh`.
 4. Document any account setup, runtime initialization, or platform limits in README.
-5. Run isolated tests. For a requested real installation, preview first:
+5. For a requested real installation, preview first:
 
 ```bash
 stow --target="$HOME" --simulate --verbose package

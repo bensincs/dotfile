@@ -87,6 +87,10 @@ if ! stow --dir="$DOTFILES_DIR" --target="$HOME" --simulate "${STOW_PACKAGES[@]}
   exit 1
 fi
 
+# Build/install before applying the new command wrappers. Failed builds leave
+# the existing configuration and managed executables in place.
+bash "$DOTFILES_DIR/scripts/install-rust-tools.sh"
+
 stow --dir="$DOTFILES_DIR" --target="$HOME" "${STOW_PACKAGES[@]}"
 
 # ----------------------------

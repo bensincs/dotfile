@@ -92,47 +92,8 @@ fi
 alias gs="git status"
 alias gp="git pull"
 
-# Watch changes from the commit at launch, across later commits and pushes.
-diffwatch() {
-  bash "$HOME/.config/zsh/diffwatch.sh" "$@"
-}
-
-# wt - git worktrees under ~/worktrees/<repo>/<branch>, each in its own Rex tab.
-# Outside Rex, `wt new` and `wt go` cd into the worktree instead.
-wt() {
-  case "${1:-}" in
-    new | go)
-      local target
-      target="$(bash "$HOME/.config/zsh/wt.sh" "$@")" || return
-      [[ -n "$target" && -d "$target" ]] && cd "$target"
-      ;;
-    ui)
-      local choice target
-      choice="$(mktemp)"
-      WT_CHOICE_FILE="$choice" bash "$HOME/.config/zsh/wt.sh" "$@"
-      target="$(<"$choice")"
-      rm -f "$choice"
-      [[ -n "$target" && -d "$target" ]] && cd "$target"
-      ;;
-    *) bash "$HOME/.config/zsh/wt.sh" "$@" ;;
-  esac
-}
-
-# n - live-synced notes pad. Works in any number of terminals or Rex panes.
-#   n              open the pad
-#   n some text    append a line without opening it
-#   cmd | n        append piped output
-n() {
-  bash "$HOME/.config/zsh/notes.sh" "$@"
-}
-
 # kubernetes
 alias k="kubectl"
-
-# kctx - switch kubectl context from a filterable list (Rex: Ctrl+A, then K).
-kctx() {
-  python3 "$HOME/.config/zsh/kctx.py"
-}
 
 # misc
 if command -v code-insiders >/dev/null 2>&1; then

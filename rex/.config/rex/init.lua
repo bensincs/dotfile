@@ -43,7 +43,7 @@ rex.bind("cmd+-", "client.font.decrease")
 -- Ctrl+A leader: split right, split below, open a tab, or close a pane.
 -- Ctrl+A, N opens the notes pad as a popup; Ctrl+A, Ctrl+N appends the clipboard first.
 -- Quit the pad with Ctrl+Q to close the popup.
-local notes_script = os.getenv("HOME") .. "/.config/zsh/notes.sh"
+local notes_binary = os.getenv("HOME") .. "/.local/bin/n"
 
 rex.action{
   name = "notes",
@@ -51,7 +51,7 @@ rex.action{
   description = "Open the live-synced notes pad in a floating pane.",
   args = { clip = "boolean?" },
   run = function(ctx, args)
-    local command = { "bash", notes_script }
+    local command = { notes_binary }
     if args and args.clip then table.insert(command, "--clip") end
     local result, err = rex.session.new_layer{
       session_id = ctx.session_id,
@@ -76,7 +76,7 @@ rex.bind("ctrl+a>n", "notes")
 rex.bind("ctrl+a>ctrl+n", "notes", { clip = true })
 
 -- Ctrl+A, W opens the worktree manager (wt ui) for the focused pane's repository.
-local wt_script = os.getenv("HOME") .. "/.config/zsh/wt.sh"
+local wt_binary = os.getenv("HOME") .. "/.local/bin/wt"
 
 rex.action{
   name = "worktrees",
@@ -93,7 +93,7 @@ rex.action{
       bounds = { 0.15, 0.15, 0.7, 0.6 },
       layout = rex.layout.block{
         flavor = "com.superlogical.terminal.shell",
-        options = { command = { "bash", wt_script, "ui", cwd }, cwd = cwd },
+        options = { command = { wt_binary, "ui", cwd }, cwd = cwd },
       },
       focus = true,
     }
@@ -125,7 +125,7 @@ rex.action{
   title = "Switch Kubernetes Context",
   description = "Pick a kubectl context in a floating pane.",
   run = function(ctx)
-    return popup(ctx, { "python3", os.getenv("HOME") .. "/.config/zsh/kctx.py" },
+    return popup(ctx, { os.getenv("HOME") .. "/.local/bin/kctx" },
       { 0.2, 0.15, 0.6, 0.6 })
   end,
 }

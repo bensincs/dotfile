@@ -50,11 +50,14 @@ It performs these steps:
 1. Find or install Homebrew and load its environment.
 2. Trust the Brewfile's third-party taps and install/update its dependencies.
 3. Create real directories for Pi and Copilot runtime state.
-4. Check **all** Stow packages for conflicts, then link them to `$HOME`.
-5. Install Azure CLI with `uv tool` if `az` is missing (macOS and Linux).
-6. Install the Rex CLI with its official installer if `rex` is missing (Linux only).
-7. Restore the Neovim plugin versions from `lazy-lock.json`.
-8. Set up Tailscale: open the macOS app or start the Linux system service and
+4. Check **all** Stow packages for conflicts before changing links.
+5. Install the stable Rust toolchain if missing, build the Rust CLI tools from
+   source, and install their executables into `~/.local/bin/`.
+6. Link the Stow packages to `$HOME`.
+7. Install Azure CLI with `uv tool` if `az` is missing (macOS and Linux).
+8. Install the Rex CLI with its official installer if `rex` is missing (Linux only).
+9. Restore the Neovim plugin versions from `lazy-lock.json`.
+10. Set up Tailscale: open the macOS app or start the Linux system service and
    connect, prompting for sign-in when needed.
 
 Rerunning bootstrap reapplies configuration and may upgrade packages. It does not
@@ -138,12 +141,68 @@ stow --target="$HOME" agents
 Run `/reload` in Pi to discover the shared skills. Changes under `~/.agents/`
 now land in this repo; review them before committing.
 
+### Rust CLI tools
+
+`tools/` is a Cargo workspace, not a Stow package. It currently contains the
+Rust `kctx` context picker and `wt` worktree CLI/TUI. Bootstrap remains Bash;
+`n` and `diffwatch` are executable Bash scripts stowed into `~/.local/bin/`.
+Bootstrap calls `scripts/install-rust-tools.sh` after Brew Bundle and the Stow
+conflict check, before linking the updated shell configuration.
+
+The installer locates Rustup without loading interactive shell configuration,
+installs the stable toolchain with the minimal profile only when missing, and
+builds with `rustup run stable cargo build --release --locked --workspace`.
+It preserves an existing default toolchain and does not update an already
+installed stable toolchain. Initial toolchain/crate downloads require internet.
+Later bootstrap runs rebuild changed sources using Cargo's cache.
+
+- Executables: `~/.local/bin/kctx` and `~/.local/bin/wt` (ordinary files, not Stow links).
+- Build artifacts: `~/.cache/dotfiles/rust-target/`; `XDG_CACHE_HOME` is respected.
+- Installation fingerprints: `~/.local/state/dotfiles/rust-tools/`;
+  `XDG_STATE_HOME` is respected.
+- Git contains source, manifests and `Cargo.lock`, never compiled executables.
+  Local `tools/target/` builds are gitignored too.
+
+Successful builds replace managed executables atomically. A failed build leaves
+the old executable intact. The installer refuses unrelated existing executables,
+symlinks, or binaries modified since installation; back up the reported file
+outside the repository before rerunning. Do not delete installation fingerprints
+while keeping the binaries: without them the installer cannot prove ownership.
+`~/.local` and `~/.local/bin` must be real directories, not Stow-folded links.
+
+To rebuild/install just these tools without running package or account setup:
+
+```bash
+./scripts/install-rust-tools.sh
+```
+
+Zsh finds `wt`, `kctx`, `n`, and `diffwatch` through the existing `~/.local/bin`
+PATH entry. None has a shell function or alias wrapper. The Rex Ctrl+A, K popup
+uses `~/.local/bin/kctx` directly, and the notes popup uses `~/.local/bin/n`.
+When stowing Zsh without bootstrap on a fresh home, create `~/.local/bin` first
+so Stow links the scripts individually rather than folding that directory.
+The binary still calls the existing `kubectl` CLI; it does not use a new
+Kubernetes client or change your account setup. Outside a full bootstrap,
+rebuild/install before loading the updated shell configuration.
+
+Outside Rex, `wt new`, `wt go`, and `wt ui` print the selected path; they do not
+change the calling shell's directory. To change directory explicitly, use
+`cd "$(wt go NAME)"` outside Rex. Old shells retain removed functions until you
+start a new shell or run `unfunction wt kctx n diffwatch 2>/dev/null`.
+The CLI and TUI share Git parsing and safety checks: removal refuses the main
+checkout, the current directory, dirty worktrees, unpushed commits, and failed
+status checks. Git performs the final removal without `--force`. Status loading
+uses eight background workers; old refresh results are ignored. The Rex Ctrl+A,
+W popup invokes `~/.local/bin/wt ui` directly. Rex window IDs are resolved fresh;
+ambiguous labels are refused and the invoking window is never closed.
+
 ### Existing dotfiles and recovery
 
 Stow refuses to replace ordinary files, directories with conflicting contents, or
 links owned by another checkout. Bootstrap prints the conflicting paths and exits
 before linking any packages. Homebrew installation and state-directory creation
-may already have happened.
+may already have happened. A later Rust build failure also stops before linking;
+previously installed executables remain available.
 
 Review and move **only the reported conflicts** outside this repository. For
 example, if an existing `.zshrc` conflicts:
@@ -234,7 +293,8 @@ fnm default "$(fnm current)"
 ```
 
 Project `.node-version` / `.nvmrc` files take precedence when switching directories.
-Install a Rust toolchain when needed:
+Bootstrap installs stable for the Rust CLI tools. To also make it your default
+for projects and add development components:
 
 ```bash
 rustup default stable
@@ -329,8 +389,10 @@ a Docker daemon, cloud resources, VS Code extensions, or per-project `.envrc` fi
 
 ## Configuration layout
 
-Each tool directory is a Stow package. Its contents mirror their location in
-`$HOME`; for example, `git/.gitconfig` becomes `~/.gitconfig`.
+Tool configuration directories are Stow packages. Their contents mirror their
+location in `$HOME`; for example, `git/.gitconfig` becomes `~/.gitconfig`.
+`tools/` contains source code and `scripts/` contains build/install helpers;
+neither is stowed.
 
 | Path | Purpose |
 | --- | --- |
@@ -346,8 +408,9 @@ Each tool directory is a Stow package. Its contents mirror their location in
 | `pi/` | Pi instructions, MCP servers, package, and model shortcuts |
 | `rex/` | macOS Rex shortcuts, Kitty palette, Apply Kitty Style action |
 | `starship/` | Prompt configuration |
-| `zsh/` | Shell startup files and helper scripts |
-| `tests/` | Isolated setup regression checks |
+| `zsh/` | Shell startup files and executable `n`/`diffwatch` scripts |
+| `tools/` | Rust CLI workspace and committed dependency lockfile |
+| `scripts/` | Automatic source-build and safe executable installation |
 
 Bootstrap stows every tool package except Kitty and Rex on Linux. The Cloudflare
 skills under `agents/.agents/skills/cloudflare-skills/` are vendored reference
@@ -361,10 +424,10 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
   when Rex updates. The shell reports its directory to the terminal (OSC 7), so
   Rex tab titles and new tabs and splits follow it.
 - `z` / `cd`: zoxide navigation. `gs`, `gp`: Git status and pull. `k`: kubectl.
-- `kctx`: switch kubectl context from a list; type to filter (characters in
+- `kctx`: Rust context picker built automatically by bootstrap; switch kubectl context from a list; type to filter (characters in
   order, so `c2qa` finds `aks-cortex2-qa-…`), Enter switches, Esc clears or quits.
   In Rex, Ctrl+A then K opens it as a popup.
-- `wt`: git worktrees at `~/worktrees/<repo>/<branch>` (override with `WT_ROOT`).
+- `wt`: Rust CLI/TUI built automatically by bootstrap; git worktrees at `~/worktrees/<repo>/<branch>` (override with `WT_ROOT`).
   `wt new <branch> [base]` creates one from the fresh default branch (or an
   existing local/remote branch); `wt go <name>` opens it; `wt ls` shows each
   worktree's uncommitted and unpushed counts; `wt rm <name>` removes only clean,
@@ -372,7 +435,7 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
   worktrees whose folders are gone. Inside Rex, `new` and `go` open a background
   tab named `wt:<repo>/<worktree>` (`wt:<repo>/<branch>` for the main checkout)
   without taking focus (`wt go --focus` switches to it), and `rm` closes it;
-  elsewhere they `cd`. `wt ui` (Rex: Ctrl+A, then W) is a popup for the focused
+  outside Rex they print the selected path. `wt ui` (Rex: Ctrl+A, then W) is a popup for the focused
   pane's repo, or every repo under `~/worktrees` outside one: Enter opens and
   switches, Backspace removes (same safety checks), N creates, R refreshes,
   Q or Esc closes. Never delete a worktree folder with `rm -rf`.
@@ -396,11 +459,6 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
 From the repository root:
 
 ```bash
-# Syntax, configuration, isolated shells, and sandboxed Stow/bootstrap tests.
-# Requires Python 3.11+ (included in Brewfile), Zsh, and GNU Stow.
-# Does not install packages or change your real home directory.
-python3.11 -m unittest discover -s tests -v
-
 # Confirm dependency installation and interactive shell setup on this machine.
 brew bundle check --file=Brewfile
 zsh -ic 'command -v gh nvim pi az; print -r -- "History: $HISTFILE"'
@@ -410,7 +468,6 @@ git status --short
 git diff
 ```
 
-The isolated tests do not replace fresh-OS provisioning or account sign-in checks.
 To update packages and reapply configuration, run `./bootstrap.sh` again. To preview
 or remove one package, explicitly target the home directory:
 

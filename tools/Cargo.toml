@@ -1,0 +1,3 @@
+[workspace]
+members = ["kctx", "wt"]
+resolver = "3"

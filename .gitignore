@@ -2,6 +2,13 @@
 node_modules/
 __pycache__/
 /demos/
+/tools/target/
+
+# Stow-managed scripts override the global .local/ ignore.
+!/zsh/.local/
+!/zsh/.local/bin/
+!/zsh/.local/bin/n
+!/zsh/.local/bin/diffwatch
 
 # Machine-local shell overrides may contain credentials.
 .zshenv.local
