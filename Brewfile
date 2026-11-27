@@ -42,6 +42,7 @@ brew "bottom"
 brew "fnm"
 brew "asdf"
 brew "rustup"
+brew "protobuf" # protoc, which Rust crates with protobuf definitions need to build
 brew "go"
 
 # --- Kubernetes / Operators ---

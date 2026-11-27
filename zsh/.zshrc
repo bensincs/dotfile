@@ -178,6 +178,13 @@ fi
 
 [[ -d /Applications/Docker.app ]] && export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
+# macOS login shells run path_helper after .zshenv. It moves Homebrew's bin, and
+# with it the rust that other formulae need to build, ahead of the rustup proxies.
+# Put the proxies first again, so that a project's rust-toolchain.toml is used.
+if [[ -d "$HOMEBREW_PREFIX/opt/rustup/bin" ]]; then
+  path=("$HOMEBREW_PREFIX/opt/rustup/bin" $path)
+fi
+
 # Machine-local, untracked overrides and private values (e.g. WHATSAPP_ALLOW)
 if [[ -f "$HOME/.zshrc.local" ]]; then
   source "$HOME/.zshrc.local"

@@ -238,7 +238,12 @@ Install a Rust toolchain when needed:
 
 ```bash
 rustup default stable
+rustup component add clippy rustfmt rust-analyzer
 ```
+
+The rustup proxies come before Homebrew's own `rust`, which other formulae need to
+build, so `cargo` uses the toolchain that a project's `rust-toolchain.toml` names.
+`protobuf` supplies `protoc` for crates that compile protobuf definitions.
 
 For Python projects use `uv sync` and `uv run`; uv manages their environments.
 For asdf projects, install the project's required plugins, then run `asdf install`
