@@ -119,7 +119,17 @@ local function popup(ctx, command, bounds)
   return result
 end
 
--- Ctrl+A, K switches kubectl context; Ctrl+A, M opens system monitoring.
+-- Ctrl+A, A switches Azure subscription; K switches kubectl context; M opens monitoring.
+rex.action{
+  name = "azure_context",
+  title = "Switch Azure Subscription",
+  description = "Pick and confirm an Azure tenant/subscription in a floating pane.",
+  run = function(ctx)
+    return popup(ctx, { os.getenv("HOME") .. "/.local/bin/azctx" },
+      { 0.1, 0.1, 0.8, 0.8 })
+  end,
+}
+
 rex.action{
   name = "kube_context",
   title = "Switch Kubernetes Context",
@@ -139,6 +149,7 @@ rex.action{
   end,
 }
 
+rex.bind("ctrl+a>a", "azure_context")
 rex.bind("ctrl+a>k", "kube_context")
 rex.bind("ctrl+a>m", "monitor")
 for _, direction in ipairs({ "left", "right", "up", "down" }) do

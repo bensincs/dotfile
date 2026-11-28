@@ -109,7 +109,8 @@ No account state or application preferences are committed.
 Rex uses Ctrl+A as a leader: then V splits right, H splits below, T opens a
 new tab, X closes the focused pane, P opens the command palette, N opens the
 notes pad as a popup (Ctrl+N appends the clipboard first), W opens the
-worktree manager (`wt ui`), K switches kubectl context, M opens `btm`
+worktree manager (`wt ui`), A picks an Azure subscription (`azctx`),
+K switches kubectl context, M opens `btm`
 system monitoring, and arrow keys
 focus the pane in that direction. Ctrl+A twice sends a literal Ctrl+A to the
 terminal. Cmd pane/tab management shortcuts are disabled.
@@ -144,7 +145,7 @@ now land in this repo; review them before committing.
 ### Rust CLI tools
 
 `tools/` is a Cargo workspace, not a Stow package. It currently contains the
-Rust `kctx` context picker and `wt` worktree CLI/TUI. Bootstrap remains Bash;
+Rust `kctx` and `azctx` context pickers and the `wt` worktree CLI/TUI. Bootstrap remains Bash;
 `n` and `diffwatch` are executable Bash scripts stowed into `~/.local/bin/`.
 Bootstrap calls `scripts/install-rust-tools.sh` after Brew Bundle and the Stow
 conflict check, before linking the updated shell configuration.
@@ -156,7 +157,8 @@ It preserves an existing default toolchain and does not update an already
 installed stable toolchain. Initial toolchain/crate downloads require internet.
 Later bootstrap runs rebuild changed sources using Cargo's cache.
 
-- Executables: `~/.local/bin/kctx` and `~/.local/bin/wt` (ordinary files, not Stow links).
+- Executables: `~/.local/bin/azctx`, `~/.local/bin/kctx`, and `~/.local/bin/wt`
+  (ordinary files, not Stow links).
 - Build artifacts: `~/.cache/dotfiles/rust-target/`; `XDG_CACHE_HOME` is respected.
 - Installation fingerprints: `~/.local/state/dotfiles/rust-tools/`;
   `XDG_STATE_HOME` is respected.
@@ -176,7 +178,7 @@ To rebuild/install just these tools without running package or account setup:
 ./scripts/install-rust-tools.sh
 ```
 
-Zsh finds `wt`, `kctx`, `n`, and `diffwatch` through the existing `~/.local/bin`
+Zsh finds `wt`, `kctx`, `azctx`, `n`, and `diffwatch` through the existing `~/.local/bin`
 PATH entry. None has a shell function or alias wrapper. The Rex Ctrl+A, K popup
 uses `~/.local/bin/kctx` directly, and the notes popup uses `~/.local/bin/n`.
 When stowing Zsh without bootstrap on a fresh home, create `~/.local/bin` first
@@ -424,6 +426,15 @@ material with their own `LICENSE`; do not edit them as part of routine machine s
   when Rex updates. The shell reports its directory to the terminal (OSC 7), so
   Rex tab titles and new tabs and splits follow it.
 - `z` / `cd`: zoxide navigation. `gs`, `gp`: Git status and pull. `k`: kubectl.
+- `azctx`: Rust Azure subscription picker built automatically by bootstrap;
+  Ctrl+A then A in Rex opens it as a popup. Type to filter subscription names,
+  subscription IDs, or tenant IDs; Up/Down selects a row, Enter opens the
+  confirmation screen, Y confirms, and Esc cancels/clears/quits. The current
+  subscription is marked `*` in green. Ctrl+R refreshes subscriptions from Azure.
+  It uses the existing `az` login and only lists enabled subscriptions in the
+  current cloud. It never signs in or changes clouds automatically. Confirming
+  runs `az account set --subscription ID`, changing the Azure CLI default in
+  the current configuration directory (`AZURE_CONFIG_DIR` is respected).
 - `kctx`: Rust context picker built automatically by bootstrap; switch kubectl context from a list; type to filter (characters in
   order, so `c2qa` finds `aks-cortex2-qa-…`), Enter switches, Esc clears or quits.
   In Rex, Ctrl+A then K opens it as a popup.

@@ -5,7 +5,7 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN_DIR="$HOME/.local/bin"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/rust-tools"
 TARGET_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles/rust-target"
-BINARIES=(kctx wt)
+BINARIES=(azctx kctx wt)
 
 die() { printf 'Rust tools: %s\n' "$*" >&2; exit 1; }
 
